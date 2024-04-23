@@ -182,7 +182,7 @@ jobs:
         cd tarballs
         echo "Before:"
         ls -latrR *
-        mv */*.tgz 
+        mv */*.tgz .
         mv */*.zip .
         rm -Rf -- */
         echo "After:"
