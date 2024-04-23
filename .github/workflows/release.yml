@@ -1,0 +1,195 @@
+name: Release_Automation
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      main_build_only:
+        description: "Run non-dockerx builds only"
+        required: true
+        default: false
+        type: boolean
+
+permissions: # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  verify_tags:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - name: Ensure pubspec.yaml matches git ref (if current git ref is a version tag)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: ./packages/dart/sshnoports
+        run: |
+          REF=${{ github.ref }}
+          TAG=${REF:10}
+          PUBSPEC_TAG="v$(egrep -o '^version: (.*)$' pubspec.yaml | cut -d':' -f2 | tr -d '[:space:]')"
+          if [ "$TAG" != "$PUBSPEC_TAG" ]; then
+            echo "Tag $TAG does not match version in pubspec.yaml: $PUBSPEC_TAG"
+            exit 1
+          fi
+
+  main_build:
+    needs: verify_tags
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./packages/dart/sshnoports
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            output-name: sshnp-linux-x64
+            ext: ''
+            bundle: 'shell'
+          - os: macOS-latest
+            output-name: sshnp-macos-x64
+            ext: ''
+            bundle: 'shell'
+          - os: macos-14
+            output-name: sshnp-macos-arm64
+            ext: ''
+            bundle: 'shell'
+          - os: windows-latest
+            output-name: sshnp-windows-x64
+            ext: '.exe'
+            bundle: 'windows'
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      #- uses: dart-lang/setup-dart@f0ead981b4d9a35b37f30d36160575d60931ec30 # v1.6.4
+      # create directories need for build
+      - run: |
+          mkdir sshnp
+          mkdir tarball
+      - if: ${{ matrix.os != 'windows-latest' }}
+        run: mkdir sshnp/debug
+      # compile binaries
+      - run: |
+          echo 'at_activate' > sshnp/at_activate${{ matrix.ext }}
+          echo 'sshnp' > sshnp/sshnp${{ matrix.ext }}
+          echo 'npt' > sshnp/npt${{ matrix.ext }}
+          echo 'sshnpd' > sshnp/sshnpd${{ matrix.ext }}
+          echo 'srv' > sshnp/srv${{ matrix.ext }}
+      - if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          echo 'srvd' > sshnp/srvd${{ matrix.ext }}
+          echo 'srvd_debug' > sshnp/debug/srvd${{ matrix.ext }}
+      # copy additional bundle items to build
+      - run: |
+          cp -r bundles/core/* sshnp/
+          cp -r bundles/${{ matrix.bundle }}/* sshnp/
+          cp LICENSE sshnp
+      # codesign for apple (DELETED)
+
+      # zip the build
+      - if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'macos-14'}}
+        run: ditto -c -k --keepParent sshnp tarball/${{ matrix.output-name }}.zip
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: tar -cvzf tarball/${{ matrix.output-name }}.tgz sshnp
+      - if: ${{ matrix.os == 'windows-latest' }}
+        run: Compress-Archive -Path sshnp -Destination tarball/${{ matrix.output-name }}.zip
+      # Notarize the build (DELETED)
+
+      # upload the build
+      - uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/sshnoports/tarball
+          if-no-files-found: error
+
+  other_build:
+    if: ${{ ! inputs.main_build_only }}
+    needs: verify_tags
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/dart
+    strategy:
+      matrix:
+        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
+        include:
+          - platform: linux/arm/v7
+            output-name: sshnp-linux-arm
+          - platform: linux/arm64
+            output-name: sshnp-linux-arm64
+          - platform: linux/riscv64
+            output-name: sshnp-linux-riscv64
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+      - uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+      - run: |
+          docker buildx build -t cpswan/releaseautomation -f sshnoports/tools/Dockerfile.package \
+          --platform ${{ matrix.platform }} -o type=tar,dest=bins.tar .
+          mkdir tarballs
+          tar -xvf bins.tar -C tarballs
+      - uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/tarballs/${{ matrix.output-name }}.tgz
+          if-no-files-found: error
+
+  universal_sh:
+    if: startsWith(github.ref, 'refs/tags/v')
+    defaults:
+      run:
+        working-directory: ./packages/dart/sshnoports/bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - run: |
+          write_metadata() {
+            start_line="# SCRIPT METADATA"
+            end_line="# END METADATA"
+            file=$1
+            variable=$2
+            value=$3
+            # since this is linux only, sed -i is safe without a file ext.
+            sed -i "/$start_line/,/$end_line/s|$variable=\".*\"|$variable=\"$value\"|g" "$file"
+          }
+          REF=${{ github.ref }}
+          TAG=${REF:11}
+          write_metadata universal.sh sshnp_version "$TAG"
+      - uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: universal.sh-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/sshnoports/bundles/universal.sh
+          if-no-files-found: error
+
+  github-release:
+    name: >-
+      Sign the binary tarballs with Sigstore
+      and upload them to GitHub Release
+    needs: [main_build, other_build, universal_sh]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+
+    steps:
+    - name: Download all the tarballs
+      uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
+      with:
+        path: tarballs/
+    - name: Sign the tarballs with Sigstore
+      uses: sigstore/gh-action-sigstore-python@61f6a500bbfdd9a2a339cf033e5421951fbc1cd2 # v2.1.1
+      with:
+        inputs: >-
+          ./tarballs/*.tgz
+          ./tarballs/*.zip
+    - name: Upload artifact signatures to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release upload
+        '${{ github.ref_name }}' tarballs/**
+        --repo '${{ github.repository }}'

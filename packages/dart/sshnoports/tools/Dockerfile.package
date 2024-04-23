@@ -1,0 +1,31 @@
+# Dockerfile.package
+# A dockerfile for packaging SSH No Ports releases using docker buildx
+
+FROM atsigncompany/buildimage:3.3.4_3.4.0-282.2.beta@sha256:4edfe687b77437988e1efd24b348795fa84c48b1c428b68c8026ca63478fa40a AS build
+# Using atsigncompany/buildimage until official dart image has RISC-V support
+WORKDIR /sshnoports
+COPY . .
+RUN set -eux; \
+  case "$(dpkg --print-architecture)" in \
+  amd64) ARCH="x64";; \
+  armhf) ARCH="arm";; \
+  arm64) ARCH="arm64";; \
+  riscv64) ARCH="riscv64";; \
+  esac; \
+  cd sshnoports; \
+  mkdir -p sshnp/debug; \
+  mkdir tarball; \
+  echo 'at_activate' > sshnp/at_activate
+  echo 'sshnp' > sshnp/sshnp
+  echo 'npt' > sshnp/npt
+  echo 'sshnpd' > sshnp/sshnpd
+  echo 'srv' > sshnp/srv
+  echo 'srvd' > sshnp/srvd
+  echo 'srvd_debug' > sshnp/debug/srvd
+  cp -r bundles/core/* sshnp/; \
+  cp -r bundles/shell/* sshnp/; \
+  cp LICENSE sshnp/; \
+  tar -cvzf tarball/sshnp-linux-${ARCH}.tgz sshnp
+
+FROM scratch
+COPY --from=build /sshnoports/sshnoports/tarball/* /
