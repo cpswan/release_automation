@@ -35,7 +35,7 @@ jobs:
           sed -i "s/version: '\(.*\)'/version: '"${TAG}"'/" \
             pubspec.yaml
       - name: Push changes to branch
-        run: git push
+        run: git push --set-upstream origin robo-${{github.run_number}}
 
   main_build:
     needs: verify_tags
