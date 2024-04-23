@@ -20,6 +20,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - name: Create action branch
+        run: |
+          git config --global user.name 'Atsign Robot'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b robo-${{github.run_number}}
       - name: Ensure pubspec.yaml matches git ref (if current git ref is a version tag)
         shell: bash
         if: startsWith(github.ref, 'refs/tags/v')
@@ -27,11 +32,10 @@ jobs:
         run: |
           REF=${{ github.ref }}
           TAG=${REF:10}
-          PUBSPEC_TAG="v$(egrep -o '^version: (.*)$' pubspec.yaml | cut -d':' -f2 | tr -d '[:space:]')"
-          if [ "$TAG" != "$PUBSPEC_TAG" ]; then
-            echo "Tag $TAG does not match version in pubspec.yaml: $PUBSPEC_TAG"
-            exit 1
-          fi
+          sed -i "s/version: '\(.*\)'/version: '"${TAG}"'/" \
+            pubspec.yaml
+      - name: Push changes to branch
+        run: git push
 
   main_build:
     needs: verify_tags
@@ -61,6 +65,8 @@ jobs:
             bundle: 'windows'
     steps:
       - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+        with:
+          ref: robo-${{github.run_number}}
       #- uses: dart-lang/setup-dart@f0ead981b4d9a35b37f30d36160575d60931ec30 # v1.6.4
       # create directories need for build
       - run: |
@@ -84,6 +90,7 @@ jobs:
           cp -r bundles/core/* sshnp/
           cp -r bundles/${{ matrix.bundle }}/* sshnp/
           cp LICENSE sshnp
+          cp pubspec.yaml sshnp
       # codesign for apple (DELETED)
 
       # zip the build
@@ -121,6 +128,8 @@ jobs:
             output-name: sshnp-linux-riscv64
     steps:
       - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+        with:
+          ref: robo-${{github.run_number}}
       - uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
       - uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
       - run: |
