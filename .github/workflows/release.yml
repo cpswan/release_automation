@@ -17,6 +17,8 @@ permissions: # added using https://github.com/step-security/secure-repo
 
 jobs:
   verify_tags:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
