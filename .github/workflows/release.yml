@@ -33,8 +33,8 @@ jobs:
         working-directory: ./packages/dart/sshnoports
         run: |
           REF=${{ github.ref }}
-          TAG=${REF:10}
-          sed -i "0,/version:/{s/version: \(.*\)/version: "${TAG}"/}" pubspec.yaml
+          VER=${REF:11}
+          sed -i "0,/version:/{s/version: \(.*\)/version: "${VER}"/}" pubspec.yaml
           if [ "$(git status --porcelain)" ]; then
             git add .
             git commit -m 'ci: Updated version to tag'
