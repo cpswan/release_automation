@@ -179,6 +179,13 @@ jobs:
         path: tarballs/
     - name: Move packages for signing
       run: |
+        cd tarballs
+        echo "Before:"
+        ls -latrR *
+        mv */*.tgz 
+        mv */*.zip .
+        rm -Rf -- */
+        echo "After:"
         ls -latrR *
     - name: Sign the tarballs with Sigstore
       uses: sigstore/gh-action-sigstore-python@61f6a500bbfdd9a2a339cf033e5421951fbc1cd2 # v2.1.1
