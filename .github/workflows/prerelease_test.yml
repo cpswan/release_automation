@@ -18,8 +18,12 @@ jobs:
         run: |
           RELEASE_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+          echo "$RELEASE_JSON"
           PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
+          echo $PRERELEASE
           echo "PRERELEASE=${PRERELEASE}" >> $GITHUB_ENV
+          echo ${{ env.PRERELEASE }}
+          echo ${{ ! env.PRERELEASE }}
       - if: ${{ ! env.PRERELEASE }}
         name: Promote image to latest
         run: echo "Not a prerelease - do some work"
