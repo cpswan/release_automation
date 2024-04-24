@@ -27,6 +27,6 @@ jobs:
         run: |
           echo ${{ env.PRERELEASE }}
           echo ${{ ! env.PRERELEASE }}
-      - if: ${{ env.PRERELEASE != 'false' }}
+      - if: ${{ env.PRERELEASE }} != 'false'
         name: Promote image to latest
         run: echo "Not a prerelease - do some work"
