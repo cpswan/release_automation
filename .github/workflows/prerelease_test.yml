@@ -20,7 +20,7 @@ jobs:
       - name: Check for pre-release
         run: |
           RELEASE_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/{{ env.VERSION }}")
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.VERSION }}")
           echo "$RELEASE_JSON"
           PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
           echo $PRERELEASE
