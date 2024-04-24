@@ -27,6 +27,11 @@ jobs:
           echo "$RELEASE_JSON"
           PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
           echo "PRERELEASE=${PRERELEASE}" >> $GITHUB_OUTPUT
+          if [ $PRERELEASE == 'false' ]; then
+            echo "Is latest release"
+          else
+            echo "Is a pre-release"
+          fi
 
   prerelease_test:          
     runs-on: ubuntu-latest
