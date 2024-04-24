@@ -10,26 +10,30 @@ permissions: # added using https://github.com/step-security/secure-workflows
   contents: read
 
 jobs:
-  prerelease_test:
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.prerelease.outputs.prerelease}}
     steps:
       # Extract version for docker tag
       - name: Get version
         run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
       # Check for whether this is a pre-release
-      - name: Check for pre-release
+      - id: prerelease
+        name: Check for pre-release
         run: |
           RELEASE_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.VERSION }}")
           echo "$RELEASE_JSON"
           PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
-          echo $PRERELEASE
-          echo "PRERELEASE=${PRERELEASE}"
-          echo "PRERELEASE=${PRERELEASE}" >> $GITHUB_ENV
-      - name: Show vars
-        run: |
-          echo ${{ env.PRERELEASE }}
-          echo ${{ ! env.PRERELEASE }}
-      - if: ${{ env.PRERELEASE }} != 'false'
+          echo "PRERELEASE=${PRERELEASE}" >> $GITHUB_OUTPUT
+
+  prerelease_test:          
+    runs-on: ubuntu-latest
+    needs: setup
+    steps:
+      - name: Show input
+        run: echo ${{ needs.setup.outputs.prerelease }}
+      - if: ${{ needs.setup.outputs.prerelease }} != 'false'
         name: Promote image to latest
         run: echo "Not a prerelease - do some work"
