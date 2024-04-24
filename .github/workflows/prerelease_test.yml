@@ -13,11 +13,14 @@ jobs:
   prerelease_test:
     runs-on: ubuntu-latest
     steps:
+      # Extract version for docker tag
+      - name: Get version
+        run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
       # Check for whether this is a pre-release
       - name: Check for pre-release
         run: |
           RELEASE_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/latest")
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/{{ env.VERSION }}")
           echo "$RELEASE_JSON"
           PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
           echo $PRERELEASE
