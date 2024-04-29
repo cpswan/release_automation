@@ -153,7 +153,7 @@ jobs:
           if-no-files-found: error
 
   universal_sh:
-    if: startsWith(github.ref, 'refs/tags/**')
+    if: startsWith(github.ref, 'refs/tags/')
     defaults:
       run:
         working-directory: ./packages/dart/sshnoports/bundles
