@@ -181,8 +181,7 @@ jobs:
 
   github-release:
     name: >-
-      Sign the binary tarballs with Sigstore
-      and upload them to GitHub Release
+      Upload artifacts and generate checksums for provenance
     needs: [main_build, other_build, universal_sh]
     runs-on: ubuntu-latest
     outputs:
@@ -209,7 +208,7 @@ jobs:
     - name: Generate SHA256 checksums
       working-directory: tarballs
       run: sha256sum * > checksums.txt
-    - name: Upload artifact signatures to GitHub Release
+    - name: Upload artifacts to GitHub Release
       env:
         GITHUB_TOKEN: ${{ github.token }}
       # Upload to GitHub Release using the `gh` CLI.
@@ -221,6 +220,7 @@ jobs:
         --repo '${{ github.repository }}'
     - id: hash
       name: Pass artifact hashes for SLSA provenance
+      working-directory: tarballs
       run: |
         echo "hashes=$(cat checksums.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
 
