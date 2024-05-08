@@ -1,0 +1,254 @@
+name: Release_Automation
+
+on:
+  push:
+    tags:
+      - 'r*.*.*'
+  workflow_dispatch:
+    inputs:
+      main_build_only:
+        description: "Run non-dockerx builds only"
+        required: true
+        default: false
+        type: boolean
+
+permissions: # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  verify_tags:
+    permissions:
+      contents: write # Needed to create workflow branch
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - name: Create action branch
+        run: |
+          git config --global user.name 'Atsign Robot'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -b robo-${{github.run_number}}
+      - name: Ensure pubspec.yaml matches git ref (if current git ref is a version tag)
+        shell: bash
+        if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: ./packages/dart/sshnoports
+        run: |
+          REF=${{ github.ref }}
+          VER=${REF:11}
+          sed -i "0,/version:/{s/version: \(.*\)/version: "${VER}"/}" pubspec.yaml
+          if [ "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m 'ci: Updated version to tag'
+          fi
+      - name: Push changes to branch
+        run: git push --set-upstream origin robo-${{github.run_number}}
+
+  main_build:
+    needs: verify_tags
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ./packages/dart/sshnoports
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            output-name: sshnp-linux-x64
+            ext: ''
+            bundle: 'shell'
+          - os: macOS-latest
+            output-name: sshnp-macos-x64
+            ext: ''
+            bundle: 'shell'
+          - os: macos-14
+            output-name: sshnp-macos-arm64
+            ext: ''
+            bundle: 'shell'
+          - os: windows-latest
+            output-name: sshnp-windows-x64
+            ext: '.exe'
+            bundle: 'windows'
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+        with:
+          ref: robo-${{github.run_number}}
+      #- uses: dart-lang/setup-dart@f0ead981b4d9a35b37f30d36160575d60931ec30 # v1.6.4
+      # create directories need for build
+      - run: |
+          mkdir sshnp
+          mkdir tarball
+      - if: ${{ matrix.os != 'windows-latest' }}
+        run: mkdir sshnp/debug
+      # compile binaries
+      - run: |
+          echo 'at_activate' > sshnp/at_activate${{ matrix.ext }}
+          echo 'sshnp' > sshnp/sshnp${{ matrix.ext }}
+          echo 'npt' > sshnp/npt${{ matrix.ext }}
+          echo 'sshnpd' > sshnp/sshnpd${{ matrix.ext }}
+          echo 'srv' > sshnp/srv${{ matrix.ext }}
+      - if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          echo 'srvd' > sshnp/srvd${{ matrix.ext }}
+          echo 'srvd_debug' > sshnp/debug/srvd${{ matrix.ext }}
+      # copy additional bundle items to build
+      - run: |
+          cp -r bundles/core/* sshnp/
+          cp -r bundles/${{ matrix.bundle }}/* sshnp/
+          cp LICENSE sshnp
+          cp pubspec.yaml sshnp
+      # codesign for apple (DELETED)
+
+      # zip the build
+      - if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'macos-14'}}
+        run: ditto -c -k --keepParent sshnp tarball/${{ matrix.output-name }}.zip
+      - if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: tar -cvzf tarball/${{ matrix.output-name }}.tgz sshnp
+      - if: ${{ matrix.os == 'windows-latest' }}
+        run: Compress-Archive -Path sshnp -Destination tarball/${{ matrix.output-name }}.zip
+      # Notarize the build (DELETED)
+
+      # upload the build
+      - uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/sshnoports/tarball
+          if-no-files-found: error
+
+  other_build:
+    needs: verify_tags
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/dart
+    strategy:
+      matrix:
+        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
+        include:
+          - platform: linux/arm/v7
+            output-name: sshnp-linux-arm
+          - platform: linux/arm64
+            output-name: sshnp-linux-arm64
+          - platform: linux/riscv64
+            output-name: sshnp-linux-riscv64
+    steps:
+      - if: ${{ ! inputs.main_build_only }}
+        uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+        with:
+          ref: robo-${{github.run_number}}
+      - if: ${{ ! inputs.main_build_only }}
+        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+      - if: ${{ ! inputs.main_build_only }}
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+      - if: ${{ ! inputs.main_build_only }}
+        run: |
+          docker buildx build -t cpswan/releaseautomation -f sshnoports/tools/Dockerfile.package \
+          --platform ${{ matrix.platform }} -o type=tar,dest=bins.tar .
+          mkdir tarballs
+          tar -xvf bins.tar -C tarballs
+      - if: ${{ ! inputs.main_build_only }}
+        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/tarballs/${{ matrix.output-name }}.tgz
+          if-no-files-found: error
+
+  universal_sh:
+    if: startsWith(github.ref, 'refs/tags/')
+    defaults:
+      run:
+        working-directory: ./packages/dart/sshnoports/bundles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      - run: |
+          write_metadata() {
+            start_line="# SCRIPT METADATA"
+            end_line="# END METADATA"
+            file=$1
+            variable=$2
+            value=$3
+            # since this is linux only, sed -i is safe without a file ext.
+            sed -i "/$start_line/,/$end_line/s|$variable=\".*\"|$variable=\"$value\"|g" "$file"
+          }
+          REF=${{ github.ref }}
+          TAG=${REF:11}
+          write_metadata universal.sh sshnp_version "$TAG"
+      - uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        with:
+          name: universal.sh-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/sshnoports/bundles/universal.sh
+          if-no-files-found: error
+
+  github-release:
+    name: >-
+      Upload artifacts and generate checksums for provenance
+    needs: [main_build, other_build, universal_sh]
+    runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+      attestations: write
+    steps:
+    - name: Download all the tarballs
+      uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
+      with:
+        path: tarballs/
+    - name: Move packages for signing
+      run: |
+        cd tarballs
+        echo "Before:"
+        ls -latrR *
+        mv */*.sh .
+        mv */*.tgz .
+        mv */*.zip .
+        rm -Rf -- */
+        echo "After:"
+        ls -latrR *
+    - name: Generate SHA256 checksums
+      working-directory: tarballs
+      run: sha256sum * > checksums.txt
+    - name: Upload artifacts to GitHub Release
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      # Upload to GitHub Release using the `gh` CLI.
+      # `dist/` contains the built packages, and the
+      # sigstore-produced signatures and certificates.
+      run: >-
+        gh release upload
+        '${{ github.ref_name }}' tarballs/**
+        --repo '${{ github.repository }}'
+    - id: hash
+      name: Pass artifact hashes for SLSA provenance
+      working-directory: tarballs
+      run: |
+        echo "hashes=$(cat checksums.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
+    - uses: actions/attest-build-provenance@f8d5ea8082b0d9f5ab855907be308fbd7eefb155 # v1.1.0
+      with:
+        subject-path: 'tarballs/**'
+
+  provenance:
+    needs: [github-release]
+    permissions:
+      actions: read # Needed for detection of GitHub Actions environment.
+      id-token: write # Needed for provenance signing and ID
+      contents: write # Needed for release uploads
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
+    with:
+      base64-subjects: "${{ needs.github-release.outputs.hashes }}"
+      upload-assets: true
+
+  cleanup:
+    name: Clean up temporary branch
+    needs: [main_build, other_build]
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    permissions:
+      contents: write # Needed to delete workflow branch
+    steps:
+    - uses: actions/checkout@1d96c772d19495a3b5c517cd2bc0cb401ea0529f # v4.1.3
+      with:
+        ref: robo-${{github.run_number}}
+    - name: Delete workflow branch
+      run: git push origin --delete robo-${{github.run_number}}
