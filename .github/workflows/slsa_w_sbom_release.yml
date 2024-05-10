@@ -81,7 +81,6 @@ jobs:
         run: mkdir sshnp/debug
       # compile binaries
       - run: |
-          dart pub get --enforce-lockfile
           echo 'at_activate' > sshnp/at_activate${{ matrix.ext }}
           echo 'sshnp' > sshnp/sshnp${{ matrix.ext }}
           echo 'npt' > sshnp/npt${{ matrix.ext }}
