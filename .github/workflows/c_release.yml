@@ -34,10 +34,10 @@ jobs:
             output-name: sshnp-macos-x64
             ext: ''
             bundle: 'shell'
-          - os: macos-14
-            output-name: sshnp-macos-arm64
-            ext: ''
-            bundle: 'shell'
+#          - os: macos-14
+#            output-name: sshnp-macos-arm64
+#            ext: ''
+#            bundle: 'shell'
           - os: windows-latest
             output-name: sshnp-windows-x64
             ext: '.exe'
@@ -61,7 +61,7 @@ jobs:
       # upload the build
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
-          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          name: ${{ matrix.output-name }}_${{ matrix.compiler }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
           path: ./packages/c/sshnpd/tarball
           if-no-files-found: error
 
