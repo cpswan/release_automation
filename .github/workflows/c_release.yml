@@ -46,17 +46,17 @@ jobs:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       # compile binaries
       - run: |
-          cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER={matrix.compiler}
+          cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=${{ matrix.compiler }}
           cmake --build build
           mkdir tarball
           mv build/sshnpd .
       # zip the build
       - if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'macos-14'}}
-        run: ditto -c -k --keepParent sshnpd tarball/${{ matrix.output-name }}.zip
+        run: ditto -c -k --keepParent sshnpd tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.zip
       - if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: tar -cvzf tarball/${{ matrix.output-name }}.tgz sshnpd
+        run: tar -cvzf tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.tgz sshnpd
       - if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}.zip
+        run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.zip
       # upload the build
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
