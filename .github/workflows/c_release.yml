@@ -43,22 +43,21 @@ jobs:
 #            output-name: sshnp-windows-x64
 #            ext: '.exe'
 #            bundle: 'windows'
-        compiler: [cc, clang]
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       # compile binaries
       - run: |
-          cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=${{ matrix.compiler }}
+          cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang
           cmake --build build
           mkdir tarball
           mv build/sshnpd .
       # zip the build
       - if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'macos-14'}}
-        run: ditto -c -k --keepParent sshnpd tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.zip
+        run: ditto -c -k --keepParent sshnpd tarball/${{ matrix.output-name }}.zip
       - if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: tar -cvzf tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.tgz sshnpd
+        run: tar -cvzf tarball/${{ matrix.output-name }}.tgz sshnpd
       - if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}_${{ matrix.compiler }}.zip
+        run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}.zip
       # upload the build
       - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
         with:
@@ -66,10 +65,45 @@ jobs:
           path: ./packages/c/sshnpd/tarball
           if-no-files-found: error
 
+  other_build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/c
+    strategy:
+      matrix:
+        platform: [linux/arm/v7, linux/arm64]      
+#        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
+        include:
+          - platform: linux/arm/v7
+            output-name: sshnp-linux-arm
+          - platform: linux/arm64
+            output-name: sshnp-linux-arm64
+#          - platform: linux/riscv64
+#            output-name: sshnp-linux-riscv64
+    steps:
+      - if: ${{ ! inputs.main_build_only }}
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
+      - if: ${{ ! inputs.main_build_only }}
+        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+      - if: ${{ ! inputs.main_build_only }}
+        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+      - if: ${{ ! inputs.main_build_only }}
+        run: |
+          docker buildx build -t cpswan/sshnpdc -f sshnpd/tools/Dockerfile.package \
+          --platform ${{ matrix.platform }} -o type=tar,dest=bins.tar .
+          mkdir tarballs
+          tar -xvf bins.tar -C tarballs
+      - if: ${{ ! inputs.main_build_only }}
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+        with:
+          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+          path: ./packages/dart/tarballs/${{ matrix.output-name }}.tgz
+
   github-release:
     name: >-
       Upload artifacts and generate checksums for provenance
-    needs: main_build
+    needs: [main_build, other_build]
     runs-on: ubuntu-latest
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
