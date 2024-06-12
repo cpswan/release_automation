@@ -4,21 +4,23 @@
 FROM debian:stable-slim AS build
 WORKDIR /sshnpd
 COPY . .
-RUN set -eux; \
-  case "$(dpkg --print-architecture)" in \
-    amd64) ARCH="x64";; \
-    armhf) ARCH="arm";; \
-    arm64) ARCH="arm64";; \
-    riscv64) ARCH="riscv64";; \
-  esac; \
-  apt update; \
-  apt install -y --no-install-recommends clang cmake git; \
-  cd sshnpd; \
-  cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang; \
-  cmake --build build; \
-  mkdir /tarball; \
+RUN <<EOT bash
+  set -eux
+  case "$(dpkg --print-architecture)" in
+    amd64) ARCH="x64";;
+    armhf) ARCH="arm";;
+    arm64) ARCH="arm64";;
+    riscv64) ARCH="riscv64";;
+  esac
+  apt update
+  apt install -y --no-install-recommends clang cmake git
+  cd sshnpd
+  cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang
+  cmake --build build
+  mkdir /tarball
   mv build/sshnpd .
   tar -cvzf tarball/sshnpd-linux-${ARCH}.tgz sshnpd
+EOT
 
 FROM scratch
 COPY --from=build /sshnpd/tarball/* /
