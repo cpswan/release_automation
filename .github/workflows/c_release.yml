@@ -92,7 +92,6 @@ jobs:
         cd tarballs
         echo "Before:"
         ls -latrR *
-        mv */*.sh .
         mv */*.tgz .
         mv */*.zip .
         rm -Rf -- */
