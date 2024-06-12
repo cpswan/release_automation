@@ -76,11 +76,11 @@ jobs:
 #        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
         include:
           - platform: linux/arm/v7
-            output-name: sshnp-linux-arm
+            output-name: sshnpd-linux-arm
           - platform: linux/arm64
-            output-name: sshnp-linux-arm64
+            output-name: sshnpd-linux-arm64
 #          - platform: linux/riscv64
-#            output-name: sshnp-linux-riscv64
+#            output-name: sshnpd-linux-riscv64
     steps:
       - if: ${{ ! inputs.main_build_only }}
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
