@@ -24,7 +24,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macOS-latest, windows-latest]
+        os: [ubuntu-latest, macOS-latest]
+#        os: [ubuntu-latest, macOS-latest, windows-latest]
         include:
           - os: ubuntu-latest
             output-name: sshnp-linux-x64
@@ -38,10 +39,10 @@ jobs:
 #            output-name: sshnp-macos-arm64
 #            ext: ''
 #            bundle: 'shell'
-          - os: windows-latest
-            output-name: sshnp-windows-x64
-            ext: '.exe'
-            bundle: 'windows'
+#          - os: windows-latest
+#            output-name: sshnp-windows-x64
+#            ext: '.exe'
+#            bundle: 'windows'
         compiler: [cc, clang]
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
