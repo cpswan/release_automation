@@ -12,15 +12,15 @@ RUN <<EOT bash
     arm64) ARCH="arm64";;
     riscv64) ARCH="riscv64";;
   esac
-  apt update
-  apt install -y --no-install-recommends clang cmake git
+  apt-get update
+  apt-get install -y --no-install-recommends ca-certificates clang cmake git make
   cd sshnpd
   cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang
   cmake --build build
   mkdir /tarball
-  mv build/sshnpd .
-  tar -cvzf tarball/sshnpd-linux-${ARCH}.tgz sshnpd
+  cd build
+  tar -cvzf /tarball/sshnpd-linux-${ARCH}.tgz sshnpd
 EOT
 
 FROM scratch
-COPY --from=build /sshnpd/tarball/* /
+COPY --from=build /tarball/* /
