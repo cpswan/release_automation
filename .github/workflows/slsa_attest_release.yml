@@ -1,4 +1,4 @@
-name: Release_Automation
+name: SLSA w GitHub attestation Release_Automation
 
 on:
   push:

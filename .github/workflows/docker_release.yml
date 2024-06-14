@@ -1,86 +1,21 @@
-name: C Release_Automation
+name: Docker Release_Automation
 
 on:
   push:
     tags:
-      - 'c*.*.*'
+      - 'd*.*.*'
   workflow_dispatch:
-    inputs:
-      main_build_only:
-        description: "Run non-dockerx builds only"
-        required: true
-        default: false
-        type: boolean
 
 permissions: # added using https://github.com/step-security/secure-repo
   contents: read
 
 jobs:
-  main_build:
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ./packages/c/sshnpd
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, macOS-latest]
-#        os: [ubuntu-latest, macOS-latest, windows-latest]
-        include:
-          - os: ubuntu-latest
-            output-name: sshnp-linux-x64
-            ext: ''
-            bundle: 'shell'
-          - os: macOS-latest
-            output-name: sshnp-macos-x64
-            ext: ''
-            bundle: 'shell'
-#          - os: macos-14
-#            output-name: sshnp-macos-arm64
-#            ext: ''
-#            bundle: 'shell'
-#          - os: windows-latest
-#            output-name: sshnp-windows-x64
-#            ext: '.exe'
-#            bundle: 'windows'
-    steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
-      # compile binaries
-      - run: |
-          cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang
-          cmake --build build
-          mkdir tarball
-          mv build/sshnpd .
-      # zip the build
-      - if: ${{ matrix.os == 'macOS-latest' || matrix.os == 'macos-14'}}
-        run: ditto -c -k --keepParent sshnpd tarball/${{ matrix.output-name }}.zip
-      - if: ${{ matrix.os == 'ubuntu-latest' }}
-        run: tar -cvzf tarball/${{ matrix.output-name }}.tgz sshnpd
-      - if: ${{ matrix.os == 'windows-latest' }}
-        run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}.zip
-      # upload the build
-      - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: ${{ matrix.output-name }}_${{ matrix.compiler }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
-          path: ./packages/c/sshnpd/tarball
-          if-no-files-found: error
 
-  other_build:
+  docker_build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./packages/c
-    strategy:
-      matrix:
-        platform: [linux/arm/v7, linux/arm64]      
-#        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
-        include:
-          - platform: linux/arm/v7
-            output-name: sshnpd-linux-arm
-          - platform: linux/arm64
-            output-name: sshnpd-linux-arm64
-#          - platform: linux/riscv64
-#            output-name: sshnpd-linux-riscv64
+        working-directory: ./packages/docker
     steps:
       - if: ${{ ! inputs.main_build_only }}
         uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
