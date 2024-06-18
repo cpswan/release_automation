@@ -17,7 +17,6 @@ jobs:
       contents: read
       packages: write
     outputs:
-      image: ${{ steps.image.outputs.image }}
       digest: ${{ steps.docker_build.outputs.digest }}
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
@@ -34,7 +33,7 @@ jobs:
         with:
           file: ./packages/docker/Dockerfile
           push: true
-          provenance: false
+          provenance: true
           tags: |
             cpswan/showslsa:automated
             cpswan/showslsa:latest
