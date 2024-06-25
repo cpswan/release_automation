@@ -65,40 +65,40 @@ jobs:
           path: ./packages/c/sshnpd/tarball
           if-no-files-found: error
 
-  other_build:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./packages/c
-    strategy:
-      matrix:
-        platform: [linux/arm/v7, linux/arm64]      
-#        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
-        include:
-          - platform: linux/arm/v7
-            output-name: sshnpd-linux-arm
-          - platform: linux/arm64
-            output-name: sshnpd-linux-arm64
-#          - platform: linux/riscv64
-#            output-name: sshnpd-linux-riscv64
-    steps:
-      - if: ${{ ! inputs.main_build_only }}
-        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
-      - if: ${{ ! inputs.main_build_only }}
-        uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
-      - if: ${{ ! inputs.main_build_only }}
-        uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
-      - if: ${{ ! inputs.main_build_only }}
-        run: |
-          docker buildx build -t cpswan/sshnpdc -f sshnpd/tools/Dockerfile.package \
-            --platform ${{ matrix.platform }} -o type=tar,dest=bins.tar .
-          mkdir tarballs
-          tar -xvf bins.tar -C tarballs
-      - if: ${{ ! inputs.main_build_only }}
-        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
-        with:
-          name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
-          path: ./packages/c/tarballs/${{ matrix.output-name }}.tgz
+#   other_build:
+#     runs-on: ubuntu-latest
+#     defaults:
+#       run:
+#         working-directory: ./packages/c
+#     strategy:
+#       matrix:
+#         platform: [linux/arm/v7, linux/arm64]      
+# #        platform: [linux/arm/v7, linux/arm64, linux/riscv64]
+#         include:
+#           - platform: linux/arm/v7
+#             output-name: sshnpd-linux-arm
+#           - platform: linux/arm64
+#             output-name: sshnpd-linux-arm64
+# #          - platform: linux/riscv64
+# #            output-name: sshnpd-linux-riscv64
+#     steps:
+#       - if: ${{ ! inputs.main_build_only }}
+#         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
+#       - if: ${{ ! inputs.main_build_only }}
+#         uses: docker/setup-qemu-action@68827325e0b33c7199eb31dd4e31fbe9023e06e3 # v3.0.0
+#       - if: ${{ ! inputs.main_build_only }}
+#         uses: docker/setup-buildx-action@d70bba72b1f3fd22344832f00baa16ece964efeb # v3.3.0
+#       - if: ${{ ! inputs.main_build_only }}
+#         run: |
+#           docker buildx build -t cpswan/sshnpdc -f sshnpd/tools/Dockerfile.package \
+#             --platform ${{ matrix.platform }} -o type=tar,dest=bins.tar .
+#           mkdir tarballs
+#           tar -xvf bins.tar -C tarballs
+#       - if: ${{ ! inputs.main_build_only }}
+#         uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
+#         with:
+#           name: ${{ matrix.output-name }}-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
+#           path: ./packages/c/tarballs/${{ matrix.output-name }}.tgz
 
   source_tarball:
     name: Generate source tarball
@@ -108,8 +108,9 @@ jobs:
     - name: Create tarball
       run: |
         mkdir tarball
-        cd ./packages/c
-        tar -cvzf ../../tarball/csshnpd-${{ github.ref_name }}.tar.gz .
+        cd ./packages
+        mv c csshnpd-${{ github.ref_name }}
+        tar -cvzf ../../tarball/csshnpd-${{ github.ref_name }}.tar.gz csshnpd-${{ github.ref_name }}
     - uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808 # v4.3.3
       with:
         name: csshnpd-src-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
@@ -118,7 +119,8 @@ jobs:
   github-release:
     name: >-
       Upload artifacts and generate checksums for provenance
-    needs: [main_build, other_build, source_tarball]
+    #needs: [main_build, other_build, source_tarball]
+    needs: [main_build, source_tarball]
     runs-on: ubuntu-latest
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
