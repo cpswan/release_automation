@@ -12,6 +12,12 @@ jobs:
   get_canary_sboms:
     name: Get the Canary SBOMs
     runs-on: ubuntu-latest
+    outputs:
+      hashes: ${{ steps.hash.outputs.hashes }}
+    permissions:
+      contents: write  # IMPORTANT: mandatory for making GitHub Releases
+      id-token: write  # IMPORTANT: mandatory for sigstore
+      attestations: write
     steps:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
@@ -50,5 +56,5 @@ jobs:
       contents: write # Needed for release uploads
     uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0 # 5a775b367a56d5bd118a224a811bba288150a563
     with:
-      base64-subjects: "${{ needs.github-release.outputs.hashes }}"
+      base64-subjects: "${{ needs.get_canary_sboms.outputs.hashes }}"
       upload-assets: true
