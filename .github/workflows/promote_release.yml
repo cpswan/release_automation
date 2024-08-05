@@ -44,7 +44,7 @@ jobs:
         working-directory: sboms
         run: |
           echo "hashes=$(cat checksums.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
-      - uses: actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e # v1.3.2
+      - uses: actions/attest-build-provenance@210c1913531870065f03ce1f9440dd87bc0938cd # v1.4.0
         with:
           subject-path: 'sboms/**'
 

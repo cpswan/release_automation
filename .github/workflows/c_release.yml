@@ -57,7 +57,7 @@ jobs:
       - if: ${{ matrix.os == 'windows-latest' }}
         run: Compress-Archive -Path sshnpd -Destination tarball/${{ matrix.output-name }}.zip
       # upload the build
-      - uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+      - uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
         with:
           name:
             ${{ matrix.output-name }}_${{ matrix.compiler }}-${{  github.ref_name  
@@ -95,7 +95,7 @@ jobs:
           mkdir tarballs
           tar -xvf bins.tar -C tarballs
       - if: ${{ ! inputs.main_build_only }}
-        uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+        uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
         with:
           name:
             ${{ matrix.output-name  }}-${{  github.ref_name  }}-${{  github.run_number  
@@ -113,7 +113,7 @@ jobs:
         cd ./packages
         mv c csshnpd-${{ github.ref_name }}
         tar -cvzf ../tarball/csshnpd-${{ github.ref_name }}.tar.gz csshnpd-${{ github.ref_name }}
-    - uses: actions/upload-artifact@0b2256b8c012f0828dc542b3febcab082c67f72b # v4.3.4
+    - uses: actions/upload-artifact@89ef406dd8d7e03cfd12d9e0a4a378f454709029 # v4.3.5
       with:
         name: csshnpd-src-${{github.ref_name}}-${{github.run_number}}-${{github.run_attempt}}
         path: ./tarball/csshnpd-${{ github.ref_name }}.tar.gz
@@ -169,7 +169,7 @@ jobs:
       working-directory: tarballs
       run: |
         echo "hashes=$(cat checksums.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
-    - uses: actions/attest-build-provenance@bdd51370e0416ac948727f861e03c2f05d32d78e # v1.3.2
+    - uses: actions/attest-build-provenance@210c1913531870065f03ce1f9440dd87bc0938cd # v1.4.0
       with:
         subject-path: 'tarballs/**'
 
