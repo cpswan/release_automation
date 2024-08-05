@@ -5,12 +5,6 @@ FROM debian:oldoldstable-20240612-slim@sha256:297126bdb5f6b3dd2ce43c87fcd67678f3
 WORKDIR /sshnpd
 COPY . .
 RUN set -eux; \
-  case "$(dpkg --print-architecture)" in \
-    amd64)   ARCH="x64";; \
-    armhf)   ARCH="arm";; \
-    arm64)   ARCH="arm64";; \
-    riscv64) ARCH="riscv64";; \
-  esac; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
     ca-certificates gnupg git make wget; \
@@ -19,9 +13,16 @@ RUN set -eux; \
   apt-get update; \
   apt-get install -y --no-install-recommends clang-18; \
   cd /; \
-  wget https://github.com/Kitware/CMake/releases/download/v3.30.2/cmake-3.30.2-linux-x86_64.tar.gz; \
-  tar -xvf cmake-3.30.2-linux-x86_64.tar.gz; \
-  export PATH=$PATH:/cmake-3.30.2-linux-x86_64/bin; \
+  case "$(dpkg --print-architecture)" in \
+    amd64)   ARCH="x64";\
+    wget https://github.com/Kitware/CMake/releases/download/v3.30.2/cmake-3.30.2-linux-x86_64.tar.gz; \
+    tar -xvf cmake-3.30.2-linux-x86_64.tar.gz; \
+    export PATH=$PATH:/cmake-3.30.2-linux-x86_64/bin;; \
+    arm64)   ARCH="arm64"; \
+    wget https://github.com/Kitware/CMake/releases/download/v3.30.2/cmake-3.30.2-linux-aarch64.tar.gz; \
+    tar -xvf cmake-3.30.2-linux-aarch64.tar.gz; \
+    export PATH=$PATH:/cmake-3.30.2-linux-aarch64/bin;; \
+  esac; \
   cd /sshnpd/sshnpd; \
   cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-Wno-error -pthread"; \
   cmake --build build; \
