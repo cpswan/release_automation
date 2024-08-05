@@ -75,8 +75,8 @@ jobs:
         include:
           - platform: linux/amd64
             output-name: sshnpd-linux-x64
-          - platform: linux/arm/v7
-            output-name: sshnpd-linux-arm
+    #      - platform: linux/arm/v7
+    #        output-name: sshnpd-linux-arm
           - platform: linux/arm64
             output-name: sshnpd-linux-arm64
     #          - platform: linux/riscv64
