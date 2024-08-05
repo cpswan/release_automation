@@ -13,8 +13,12 @@ RUN set -eux; \
   esac; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
-    ca-certificates clang cmake git make; \
-  cd sshnpd; \
+    ca-certificates clang wget git make; \
+  cd /; \
+  wget https://github.com/Kitware/CMake/releases/download/v3.30.2/cmake-3.30.2-linux-x86_64.tar.gz; \
+  tar -xvf cmake-3.30.2-linux-x86_64.tar.gz; \
+  export PATH=$PATH:/cmake-3.30.2-linux-x86_64/bin; \
+  cd /sshnpd/sshnpd; \
   cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-Wno-error -pthread"; \
   cmake --build build; \
   mkdir /tarball; \
