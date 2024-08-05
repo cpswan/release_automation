@@ -13,13 +13,17 @@ RUN set -eux; \
   esac; \
   apt-get update; \
   apt-get install -y --no-install-recommends \
-    ca-certificates clang wget git make; \
+    ca-certificates gnupg git make wget; \
+  echo /sshnpd/sshnpd/tools/clang-18.apt >> /etc/apt/sources.list; \
+  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends clang-18; \
   cd /; \
   wget https://github.com/Kitware/CMake/releases/download/v3.30.2/cmake-3.30.2-linux-x86_64.tar.gz; \
   tar -xvf cmake-3.30.2-linux-x86_64.tar.gz; \
   export PATH=$PATH:/cmake-3.30.2-linux-x86_64/bin; \
   cd /sshnpd/sshnpd; \
-  cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang -DCMAKE_C_FLAGS="-Wno-error -pthread"; \
+  cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang-18 -DCMAKE_C_FLAGS="-Wno-error -pthread"; \
   cmake --build build; \
   mkdir /tarball; \
   cd build; \
