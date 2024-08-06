@@ -7,8 +7,10 @@ COPY . .
 RUN set -eux; \
   apk add clang cmake coreutils git make; \
   case "$(uname -m)" in \
+    aarch64) ARCH="arm64";; \
+    armv7l)  ARCH="arm";;\
+    riscv64) ARCH="riscv64";;\
     x86_64)  ARCH="x64";;\
-    arm64)   ARCH="arm64";; \
   esac; \
   cd /sshnpd/sshnpd; \
   cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang \
