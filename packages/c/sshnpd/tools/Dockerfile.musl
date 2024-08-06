@@ -12,7 +12,7 @@ RUN set -eux; \
   esac; \
   cd /sshnpd/sshnpd; \
   cmake -B build -S . -DBUILD_SHARED_LIBS=off -DCMAKE_C_COMPILER=clang \
-    -DCMAKE_C_FLAGS="-Wno-error -pthread" -DCMAKE_EXE_LINKER_FLAGS "-static"; \
+    -DCMAKE_C_FLAGS="-Wno-error -pthread" -DCMAKE_EXE_LINKER_FLAGS="-static"; \
   cmake --build build; \
   mkdir /tarball; \
   cd build; \
