@@ -5,7 +5,7 @@ FROM alpine@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe
 WORKDIR /sshnpd
 COPY . .
 RUN set -eux; \
-  apk add coreutils clang cmake
+  apk add coreutils clang cmake; \
   case "$(dpkg --print-architecture)" in \
     amd64)   ARCH="x64";;\
     arm64)   ARCH="arm64";; \
