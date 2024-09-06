@@ -208,7 +208,7 @@ jobs:
           -o 'spdx-json=tarballs/dart_sshnoports_sbom.spdx.json' \
           -o 'cyclonedx-json=tarballs/dart_sshnoports_sbom.cdx.json'
     - name: Upload SBOM to Sbomify
-      uses: sbomify/github-action@1c79b1be19c49781229d81c247c7eea40f76d040 # master (initial release)
+      uses: sbomify/github-action@master
       with:
         token: ${{ secrets.SBOMIFY_TOKEN }}
         sbom-file: 'tarballs/dart_sshnoports_sbom.cdx.json'
