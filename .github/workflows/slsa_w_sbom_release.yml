@@ -206,7 +206,13 @@ jobs:
       run: |
         syft scan file:./packages/dart/sshnoports/pubspec.lock \
           -o 'spdx-json=tarballs/dart_sshnoports_sbom.spdx.json' \
-          -o 'cyclonedx-json=tarballs/dart_sshnoports_sbom.cyclonedx.json'
+          -o 'cyclonedx-json=tarballs/dart_sshnoports_sbom.cdx.json'
+    - name: Upload SBOM to Sbomify
+      uses: sbomify/github-action@1c79b1be19c49781229d81c247c7eea40f76d040 # master (initial release)
+      with:
+        token: ${{ secrets.SBOMIFY_TOKEN }}
+        sbom-file: 'tarballs/dart_sshnoports_sbom.cdx.json'
+        component-id: 'fzQ4hk8p4g'
     - name: Move packages for signing
       run: |
         cd tarballs
