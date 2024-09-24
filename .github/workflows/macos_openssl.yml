@@ -1,0 +1,17 @@
+name: MacOS_OpenSSL
+
+on:
+  workflow_dispatch:
+
+permissions: # added using https://github.com/step-security/secure-repo
+  contents: read
+
+jobs:
+  openssl_version:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-14, macos-15]
+    steps:
+      - run: |
+          openssl version
