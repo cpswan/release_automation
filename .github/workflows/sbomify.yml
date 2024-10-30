@@ -207,6 +207,7 @@ jobs:
         TOKEN: ${{ secrets.SBOMIFY_TOKEN }}
         COMPONENT_ID: 'GZ7pLm8m_a'
         LOCK_FILE: './packages/dart/sshnoports/pubspec.lock'
+        SBOM_VERSION: ${{github.ref_name}}
         OUTPUT_FILE: 'tarballs/dart_sshnoports_sbom.cdx.json'
         AUGMENT: true
         ENRICH: true
