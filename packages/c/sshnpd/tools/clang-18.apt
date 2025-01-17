@@ -1,7 +1,0 @@
-
-# Clang/LLVM
-deb http://apt.llvm.org/buster/ llvm-toolchain-buster main
-deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster main
-# 18
-deb http://apt.llvm.org/buster/ llvm-toolchain-buster-18 main
-deb-src http://apt.llvm.org/buster/ llvm-toolchain-buster-18 main

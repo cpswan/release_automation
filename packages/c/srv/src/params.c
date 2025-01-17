@@ -7,11 +7,14 @@ void apply_default_values_to_srv_params(srv_params_t *params) {
   params->local_host = "localhost";
   params->local_port = 22;
   params->bind_local_port = 0;
+  params->multi = 0;
   params->rv_auth = 0;
   params->rv_e2ee = 0;
 }
 
 int parse_srv_params(srv_params_t *params, int argc, const char **argv, srv_env_t *environment) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-field-initializers"
   struct argparse_option options[] = {
       OPT_BOOLEAN(0, "help", NULL, "show this help message and exit", argparse_help_cb, 0, OPT_NONEG),
       OPT_STRING('h', "host", &params->host, "rvd host"),
@@ -27,8 +30,12 @@ int parse_srv_params(srv_params_t *params, int argc, const char **argv, srv_env_
       OPT_BOOLEAN(0, "rv-e2ee", &params->rv_e2ee,
                   "Whether this rv process will encrypt/decrypt all rvd socket "
                   "traffic"),
+      OPT_BOOLEAN(0, "multi", &params->multi, "Whether to enable multiple connections or not"),
+      OPT_INTEGER(0, "timeout", &params->timeout,
+                  "How long to keep the socket connector open if there have been no connections"),
       OPT_END(),
   };
+#pragma clang diagnostic pop
 
   struct argparse argparse;
   argparse_init(&argparse, options, NULL, 0);

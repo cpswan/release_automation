@@ -15,10 +15,11 @@ set(
   ${CMAKE_CURRENT_LIST_DIR}/src/handle_ping.c
   ${CMAKE_CURRENT_LIST_DIR}/src/handle_ssh_request.c
   ${CMAKE_CURRENT_LIST_DIR}/src/handle_sshpublickey.c
+  ${CMAKE_CURRENT_LIST_DIR}/src/handler_commons.c
   ${CMAKE_CURRENT_LIST_DIR}/src/main.c
   ${CMAKE_CURRENT_LIST_DIR}/src/params.c
+  ${CMAKE_CURRENT_LIST_DIR}/src/permitopen.c
   ${CMAKE_CURRENT_LIST_DIR}/src/run_srv_process.c
-  ${CMAKE_CURRENT_LIST_DIR}/src/run_sshkeygen.c
 )
 
 # 1b. Manually add your include directories here
@@ -31,6 +32,7 @@ set(ARGPARSE_DIR ${CMAKE_CURRENT_LIST_DIR}/../3rdparty/argparse)
 set(SRV_DIR ${CMAKE_CURRENT_LIST_DIR}/../srv)
 
 # 1e. Set compile definitions
+set(ATAUTH_BUILD_EXECUTABLES OFF)
 
 # ON=>builds tests by running the tests/CMakeLists.txt file and generates a
 # `tests/` folder in the build directory where `ctest` can be ran in that
@@ -65,7 +67,7 @@ if(NOT argparse-static_FOUND)
     STATUS
     "[SSHNPD] argparse not found, fetching from local repository.."
   )
-  fetchcontent_declare(argparse-static SOURCE_DIR ${ARGPARSE_DIR})
+  FetchContent_Declare(argparse-static SOURCE_DIR ${ARGPARSE_DIR})
   list(APPEND SSHNPD_TARGETS_TO_INSTALL argparse-static)
   list(APPEND SSHNPD_MAKE_AVAILABLE argparse-static)
 else()
@@ -76,7 +78,7 @@ endif()
 find_package(srv-lib QUIET)
 if(NOT srv-lib_FOUND)
   message(STATUS "[SSHNPD] srv-lib not found, fetching from local repository..")
-  fetchcontent_declare(srv-lib SOURCE_DIR ${SRV_DIR})
+  FetchContent_Declare(srv-lib SOURCE_DIR ${SRV_DIR})
   list(APPEND SSHNPD_TARGETS_TO_INSTALL srv-lib argparse-static)
   list(APPEND SSHNPD_MAKE_AVAILABLE srv-lib argparse-static)
 else()
@@ -85,7 +87,7 @@ endif()
 
 # 4d. make everything available
 if(SSHNPD_MAKE_AVAILABLE)
-  fetchcontent_makeavailable(${SSHNPD_MAKE_AVAILABLE})
+  FetchContent_MakeAvailable(${SSHNPD_MAKE_AVAILABLE})
 endif()
 
 # 5. Create sshnpd_lib library target
@@ -150,3 +152,10 @@ if(SSHNPD_BUILD_TESTS)
   enable_testing()
   add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests)
 endif()
+
+# setup atauth binaries
+add_executable(atactivate ${CMAKE_CURRENT_LIST_DIR}/src/atactivate.c)
+target_link_libraries(atactivate PRIVATE atauth)
+
+add_executable(at_auth_cli ${CMAKE_CURRENT_LIST_DIR}/src/at_auth_cli.c)
+target_link_libraries(at_auth_cli PRIVATE atauth)

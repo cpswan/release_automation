@@ -1,11 +1,11 @@
 # Dockerfile.package
 # A dockerfile for packaging SSH No Ports releases using docker buildx
 
-FROM alpine@sha256:0a4eaa0eecf5f8c050e5bba433f58c052be7587ee8af3e8b3910ef9ab5fbe9f5 AS build
+FROM alpine@sha256:56fa17d2a7e7f168a043a2712e63aed1f8543aeafdcee47c58dcffe38ed51099 AS build
 WORKDIR /sshnpd
 COPY . .
 RUN set -eux; \
-  apk add clang cmake coreutils git make; \
+  apk add clang cmake coreutils git make python3; \
   case "$(uname -m)" in \
     aarch64) ARCH="arm64";; \
     armv7l)  ARCH="arm";;\
@@ -18,7 +18,7 @@ RUN set -eux; \
   cmake --build build; \
   mkdir /tarball; \
   cd build; \
-  tar -cvzf /tarball/sshnpd-linux-${ARCH}-musl.tgz sshnpd
+  tar -cvzf /tarball/sshnpd-linux-${ARCH}-musl.tgz sshnpd atactivate at_auth_cli
 
 FROM scratch
 COPY --from=build /tarball/* /

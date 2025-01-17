@@ -1,7 +1,6 @@
 #ifndef SSHNPD_H
 #define SSHNPD_H
-
-#define SSHNPD_VERSION "0.1.0"
+#include <unistd.h>
 
 /* Windows Definitions */
 #ifdef _WIN32
