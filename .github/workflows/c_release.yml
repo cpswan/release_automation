@@ -260,7 +260,7 @@ jobs:
   github-release:
     name: >-
       Upload artifacts and generate checksums for provenance
-    needs: [native_build, docker_build, musl_build, source_tarball]
+    needs: [native_build, docker_build_amd64, docker_build_arm64, musl_build_amd64, musl_build_arm64, source_tarball]
     runs-on: ubuntu-latest
     outputs:
       hashes: ${{ steps.hash.outputs.hashes }}
