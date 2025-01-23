@@ -9,7 +9,6 @@ permissions: # added using https://github.com/step-security/secure-repo
 jobs:
 
   musl_build_arm64:
-    needs: [verify_tags]
     runs-on: ubuntu-24.04-arm
     if: ${{ ! inputs.native_build_only }}
     defaults:
