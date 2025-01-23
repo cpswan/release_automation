@@ -1,0 +1,21 @@
+# Dockerfile.package
+# A dockerfile for packaging SSH No Ports releases using docker buildx
+
+FROM alpine@sha256:56fa17d2a7e7f168a043a2712e63aed1f8543aeafdcee47c58dcffe38ed51099 AS build
+WORKDIR /sshnpd
+ARG TARGETPLATFORM
+ARG TARGETARCH
+ARG TARGETVARIANT
+COPY . .
+RUN set -eux; \
+  apk add clang cmake coreutils git make python3; \
+  printf "Here's uname -m"; \
+  uname -m; \
+  printf "I'm building for TARGETPLATFORM=${TARGETPLATFORM}"; \
+  printf ", TARGETARCH=${TARGETARCH}"; \
+  printf ", TARGETVARIANT=${TARGETVARIANT} \n"; \
+  printf "With uname -s : " && uname -s; \
+  printf "and  uname -m : " && uname -m
+
+FROM scratch
+COPY --from=build /tarball/* /
