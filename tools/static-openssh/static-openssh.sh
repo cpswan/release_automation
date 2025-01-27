@@ -42,13 +42,14 @@ gzip -dc $dist/openssl-*.tar.gz |(cd "$build" && tar xf -)
 fi
 cd "$build"/openssl-*
 # Debian 12 / Ubuntu 20.x.x break the autoconf in ./config on armv7 devices
-  CPU=$(uname -m)
-  if [[ $CPU == "armv7l" ]]
-     then  
-     ./Configure linux-armv4 --prefix="$root"  no-shared no-tests
-     else
-     ./config --prefix="$root"  no-shared no-tests
-  fi
+# $ARCH passed in from Dockerfile
+echo "ARCH is ${ARCH}"
+if [[ $ARCH == "arm" ]]
+  then  
+    ./Configure linux-armv4 --prefix="$root"  no-shared no-tests
+  else
+    ./config --prefix="$root"  no-shared no-tests
+fi
 make
 make install
 cd "$top"
