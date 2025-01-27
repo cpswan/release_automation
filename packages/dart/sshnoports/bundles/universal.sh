@@ -2,8 +2,8 @@
 
 # SCRIPT METADATA
 # DO NOT MODIFY/DELETE THIS BLOCK
-script_version="3.0.0"
-sshnp_version="5.1.0"
+script_version="3.1.0"
+sshnp_version="5.8.0"
 repo_url="https://github.com/atsign-foundation/sshnoports"
 # END METADATA
 
@@ -15,6 +15,9 @@ repo_url="https://github.com/atsign-foundation/sshnoports"
 # shellcheck disable=SC2034
 GREP_COLOR=never
 unset GREP_OPTIONS
+
+### Constants
+systemd_config_path="/etc/systemd/system/sshnpd.service.d/override.conf"
 
 ### Environment based variables
 arg_zero="$0"
@@ -30,6 +33,17 @@ unset user
 unset user_home
 unset user_bin_dir
 
+### Pre-installation validation
+unset ssh_localhost_status
+unset is_dotlocal_created
+unset is_dotlocalbin_created
+unset is_dotssh_created
+unset is_dotsshnp_created
+unset is_dotatsign_created
+unset is_dotatsignkeys_created
+unset is_overrideconf_created
+
+
 ### Input Variables
 verbose=false
 unset tmp_path
@@ -37,10 +51,12 @@ install_type=""
 unset download_url
 local_archive=""
 no_sudo=false
+quiet=false
 
 ### Client/ Device Install Variables
 client_atsign=""
 device_atsign=""
+policy_atsign=""
 
 ### Client Install Variables
 unset magic_script
@@ -76,11 +92,35 @@ is_systemd_available() {
   [ -d /run/systemd/system ]
 }
 
+check_quiet() {
+  for arg in "$@"; do
+    if [ "$arg" = "-q" ] || [ "$arg" = "--quiet" ]; then
+      exec >/dev/null
+      break
+    fi
+  done
+}
+
+check_cmd() {
+  set +e
+  command -v "$1" >/dev/null 2>&1
+  exitcode=$?
+  set -e
+  return $exitcode
+}
+
 sedi() {
   if is_darwin; then
     sed -i '' "$@"
   else
     sed -i "$@"
+  fi
+}
+
+chown_dir() {
+  if [ -d $1 ]; then
+    echo "$1 was created by this installer, ensuring that it is owned by $user"
+    chown -R $user:$user "$1" 2>/dev/null || chown -R $user "$1" 2>/dev/null
   fi
 }
 
@@ -98,8 +138,9 @@ usage() {
   echo "  -v, --verbose                  Verbose tracing"
   echo "      --version                  Display version"
   echo "      --temp-path      <path>    Set the temporary path for downloads"
-  echo "  -t, --type           <type>    Set the install type (device, client, both)"
+  echo "  -t, --type           <type>    Set the install type (device, client)"
   echo "      --local          <path>    Install from a local archive"
+  echo "  -q, --quiet                    Disables any printing to the terminal from the script. Ensure you are including options."
   echo
   echo "Client Options:"
   echo "  -c, --client-atsign  <atsign>  Set the client atSign"
@@ -113,10 +154,24 @@ usage() {
   echo "Device Options:"
   echo "  -c,   --client-atsign  <atsign>  Set the client atSign"
   echo "  -d,   --device-atsign  <atsign>  Set the device atSign"
+  echo "  -p,   --policy-atsign  <atsign>  Set the access policy atSign"
   echo "  -n,   --device-name    <name>    Set the device name"
   echo "  --dt, --device-type    <type>    Set the device type (launchd, systemd, tmux, headless)"
-  echo "        --no-sudo                  Deliberately install without sudo priveleges"
+  echo "        --no-sudo                  Deliberately install without sudo privileges"
 
+}
+
+check_ssh_localhost() {
+  # ssh_localhost_status
+  if check_cmd sshd; then
+    ssh_localhost_status='sshd not found'
+  elif check_cmd ssh; then
+    ssh_localhost_status='sshd found, but ssh not found'
+  elif ssh localhost -o IdentitiesOnly true >/dev/null; then
+    ssh_localhost_status='Able to ssh to localhost'
+  else
+    ssh_localhost_status='sshd & ssh both found, but failed to ssh to localhost'
+  fi
 }
 
 parse_env() {
@@ -124,9 +179,9 @@ parse_env() {
     Darwin) platform_name='macos' ;;
     Linux) platform_name='linux' ;;
     *)
-      echo "Detected an unsupported platform: $(uname)"
-      echo "Please open an issue at: $repo_url"
-      echo "and provide the following information: $(uname -a)" exit 1
+      >&2 echo "Detected an unsupported platform: $(uname)"
+      >&2 echo "Please open an issue at: $repo_url"
+      >&2 echo "and provide the following information: $(uname -a)" exit 1
       ;;
   esac
 
@@ -143,15 +198,15 @@ parse_env() {
       system_arch="arm64"
       ;;
     arm | armv7l)
-      system_arch="armv7"
+      system_arch="arm"
       ;;
     riscv64)
       system_arch="riscv64"
       ;;
     *)
-      echo "Detected an unsupported architecture: $(uname -m)"
-      echo "Please open an issue at: $repo_url"
-      echo "and provide the following information: $(uname -a)"
+      >&2 echo "Detected an unsupported architecture: $(uname -m)"
+      >&2 echo "Please open an issue at: $repo_url"
+      >&2 echo "and provide the following information: $(uname -a)"
       exit 1
       ;;
   esac
@@ -178,7 +233,17 @@ parse_env() {
     bin_path="$HOME/.local/bin"
     user="$USER"
   fi
-  user_bin_dir=$user_home/.local/bin/@sshnp
+  user_bin_dir=$user_home/.local/bin
+
+  check_ssh_localhost
+
+  [ -d $user_home/.local/ ] && is_dotlocal_created=true || is_dotlocal_created=false
+  [ -d $user_home/.local/bin ] && is_dotlocalbin_created=true || is_dotlocalbin_created=false
+  [ -d $user_home/.ssh/ ] && is_dotssh_created=true || is_dotssh_created=false
+  [ -d $user_home/.sshnp/ ] && is_dotsshnp_created=true || is_dotsshnp_created=false
+  [ -d $user_home/.atsign/ ] && is_dotatsign_created=true || is_dotatsign_created=false
+  [ -d $user_home/.atsign/keys/ ] && is_dotatsignkeys_created=true || is_dotatsignkeys_created=false
+  [ -f "$systemd_config_path" ] && is_overrideconf_created=true || is_overrideconf_created=false
 }
 
 is_valid_source_mode() {
@@ -186,7 +251,7 @@ is_valid_source_mode() {
 }
 
 is_valid_install_type() {
-  [ "$1" = "device" ] || [ "$1" = "client" ] || [ "$1" = "both" ]
+  [ "$1" = "device" ] || [ "$1" = "client" ]
 }
 
 norm_install_type() {
@@ -196,9 +261,6 @@ norm_install_type() {
       ;;
     c*)
       echo "client"
-      ;;
-    b*)
-      echo "both"
       ;;
     *)
       echo ""
@@ -255,8 +317,8 @@ parse_args() {
         install_type_input="$1"
         install_type=$(norm_install_type "$install_type_input")
         if ! is_valid_install_type "$install_type"; then
-          echo "Invalid install type: $install_type_input"
-          echo "Valid options are: (device, client, both)" exit 1
+          >&2 echo "Invalid install type: $install_type_input"
+          >&2 echo "Valid options are: (device, client)" exit 1
         fi
         ;;
       --local)
@@ -264,7 +326,7 @@ parse_args() {
         if [ -f "$1" ]; then
           local_archive="$1"
         else
-          echo "Local archive not found: $1"
+          >&2 echo "Local archive not found: $1"
           exit 1
         fi
         ;;
@@ -275,6 +337,10 @@ parse_args() {
       -d | --device-atsign)
         shift
         device_atsign="$1"
+        ;;
+      -p | --policy-atsign)
+        shift
+        policy_atsign="$1"
         ;;
       -r | --region)
         # notice that --region and --rv-atsign are basically the same under the hood,
@@ -300,27 +366,49 @@ parse_args() {
         device_type_input="$1"
         device_type=$(norm_device_type "$device_type_input")
         if ! is_valid_device_type "$device_type"; then
-          echo "Invalid device type: $device_type_input"
-          echo "Valid options are: (launchd, systemd, tmux, headless)" exit 1
+          >&2 echo "Invalid device type: $device_type_input"
+          >&2 echo "Valid options are: (launchd, systemd, tmux, headless)" exit 1
         fi
         ;;
       --no-sudo)
         no_sudo=true
         ;;
+      -q | --quiet)
+        quiet=true
+        ;;
       *)
-        echo "Unexpected option: $1"
+        >&2 echo "Unexpected option: $1"
         exit 1
         ;;
     esac
     shift
   done
+  if [ $quiet = true ]; then
+    if [ "$install_type" = "device" ]; then
+      if [ -z "$client_atsign" ] || [ -z "$device_atsign" ] || [ -z "$device_name" ]; then
+        >&2 echo "Error: Missing required information for device installation. (-c, -d, -n)"
+        exit 1
+      fi
+      if [ -z "$policy_atsign" ]; then
+        >&2 echo "Info: No policy atSign provided; continuing."
+      fi
+    elif [ "$install_type" = "client" ]; then
+      if [ -z "$client_atsign" ] || [ -z "$device_atsign" ] || [ -z "$host_atsign" ]; then
+        >&2 echo "Error: Missing required information for client installation. (-c, -d, -r)"
+        exit 1
+      fi
+    else
+      >&2 echo "Specify -t, (device or client) and its required parameters."
+      exit 1
+    fi
+  fi
 }
 
 get_user_inputs() {
   if [ -z "$install_type" ]; then
     unset install_type_input
     while [ -z "$install_type" ]; do
-      printf "Install type (device, client, both):  "
+      printf "Install type (device, client):  "
       read -r install_type_input
       install_type=$(norm_install_type "$install_type_input")
     done
@@ -328,7 +416,7 @@ get_user_inputs() {
 }
 
 print_env() {
-  cat <<EOL
+  cat <<EOF
 Environment:
   Platform name: $platform_name
   System arch: $system_arch
@@ -337,31 +425,53 @@ Environment:
   Binary path: $bin_path
   User: $user
   User home: $user_home
-EOL
+  Ssh status: $ssh_localhost_status
+  Did directories exist (prior to install):
+  -       .local/ : $is_dotlocal_created
+  -   .local/bin/ : $is_dotlocalbin_created
+  -         .ssh/ : $is_dotssh_created
+  -       .sshnp/ : $is_dotssh_created
+  -      .atsign/ : $is_dotatsign_created
+  - .atsign/keys/ : $is_dotatsignkeys_created
+EOF
+}
+
+downloader() {
+  if check_cmd curl; then
+    curl -sSfL "$1" -o "$2"
+  elif check_cmd wget; then
+    wget "$1" -q -O "$2"
+  else
+    >&2 echo
+    >&2 echo "Couldn't find curl or wget to download package"
+    >&2 echo "Please install one of them"
+    >&2 echo "Also how did you download this script???"
+    >&2 echo
+    exit 1
+  fi
 }
 
 get_download_url() {
   unset download_urls
-  download_urls=$(
-    curl -fsSL "https://api.github.com/repos/atsign-foundation/noports/releases/$(norm_version $sshnp_version)" |
-      grep browser_download_url |
-      cut -d\" -f4
-  )
+  release_prefix="https://api.github.com/repos/atsign-foundation/noports/releases/"
+  release_info=$(downloader "$release_prefix$(norm_version $sshnp_version)" -)
+  exitcode=$?
+  if [ $exitcode != 0 ]; then exit $exitcode; fi
+  download_urls=$(echo "$release_info" | grep browser_download_url | cut -d\" -f4)
 
   if [ -z "$download_urls" ]; then
-    echo "Failed to get download url for sshnoports"
+    >&2 echo "Failed to get download url for sshnoports"
     exit 1
   fi
 
-  echo "$download_urls" |
-    grep "$platform_name" | grep "$system_arch" |
-    cut -d\" -f4
+  echo "$download_urls" | grep "$platform_name" |
+    grep "$system_arch." | cut -d\" -f4
 }
 
 download_archive() {
   read -r download_url
   echo "Downloading archive from $download_url"
-  curl -sL "$download_url" -o "$archive_path"
+  downloader "$download_url" "$archive_path"
   if [ ! -f "$archive_path" ]; then
     echo "Failed to download archive"
     exit 1
@@ -371,9 +481,19 @@ download_archive() {
 unpack_archive() {
   case "$archive_ext" in
     zip)
+      if ! check_cmd unzip; then
+        >&2 echo "ERROR: unzip not found"
+        >&2 echo "Please install unzip and make it available on the PATH"
+        exit 1
+      fi
       unzip -qo "$archive_path" -d "$extract_path"
       ;;
     tgz | tar.gz)
+      if ! check_cmd tar; then
+        >&2 echo "ERROR: tar not available"
+        >&2 echo "Please install tar and make it available on the PATH"
+        exit 1
+      fi
       mkdir -p "$extract_path"
       tar -zxf "$archive_path" -C "$extract_path"
       ;;
@@ -384,6 +504,15 @@ cleanup() {
   # These should be in the tmp directory, attempt to remove them anyway
   rm -f "$archive_path"
   rm -rf "$extract_path"
+
+  if $as_root; then
+    $is_dotlocal_created || chown_dir $user_home/.local
+    $is_dotlocalbin_created || chown_dir $user_home/.local/bin
+    $is_dotssh_created || chown_dir $user_home/.ssh/
+    $is_dotsshnp_created || chown_dir $user_home/.sshnp/
+    $is_dotatsign_created || chown_dir $user_home/.atsign/
+    $is_dotatsignkeys_created || chown_dir $user_home/.atsign/keys/
+  fi
 }
 
 write_metadata() {
@@ -439,28 +568,31 @@ write_systemd_environment() {
   file=$1
   variable=$2
   value=$3
-  sedi "s|Environment=$variable=\".*\"|Environment=$variable=\"$value\"|g" "$file"
+  if grep  -q "Environment=$variable=" < "$file"; then
+    sedi "s|Environment=$variable=\".*\"|Environment=$variable=\"$value\"|g" "$file"
+  else
+    echo "Environment=$variable=\"$value\"" >"$file"
+  fi
 }
 
-get_client_atsign() {
-  while [ -z "$client_atsign" ]; do
-    printf "Enter client atSign: "
-    read -r client_atsign
+get_atsign_manually() {
+  selectedatsign=""
+  if [ $# -gt 0 ]; then
+    clientOrDevice="$1"
+  fi
+  while [ -z "$selectedatsign" ]; do
+    printf "Enter %s atSign: " "$clientOrDevice"
+    read -r selectedatsign
   done
 }
 
-get_device_atsign() {
-  while [ -z "$device_atsign" ]; do
-    printf "Enter device atSign: "
-    read -r device_atsign
-  done
-}
-
-get_installed_atsigns() {
+get_atsign() {
   clientOrDevice="$1"
   atkeycount=0
   atkeys=""
   selectedatsign=""
+  echo
+  echo "Setting up $clientOrDevice atSign"
   if [ -d "${user_home}/.atsign/keys" ]; then
     # Disable unsafe find looping (will break if atkey file name contains a space, which it shouldn't)
     # shellcheck disable=SC2044
@@ -470,7 +602,8 @@ get_installed_atsigns() {
     done
     atkeys="$(echo "$atkeys" | sed s/\ \ /\ / | sed s/^\ //)" # remove double & leading space since it will interfere with cut
     if [ $atkeycount -eq 0 ]; then
-      echo "$HOME/.atsign/keys directory found but there are no keys there yet"
+      echo "$HOME/.atsign/keys directory found but there are no keys there yet, please enter the $clientOrDevice atSign manually"
+      get_atsign_manually
     elif [ $atkeycount -eq 1 ]; then
       atkey=$(echo "$atkeys" | sed "s/\ //g")
       echo "1 atKeys file found: ${atkey}"
@@ -486,7 +619,10 @@ get_installed_atsigns() {
       for i in $(seq 1 $atkeycount); do
         echo "$i) @$(echo "$atkeys" | cut -d' ' -f"$i")"
       done
-      printf '=> Found .atKeys for %s atSigns. Choose %s atSign : $ ' "$atkeycount" "$clientOrDevice"
+      echo
+      printf "Found .atKeys for %s atSigns." "$atkeycount"
+      echo
+      printf 'Choose %s atSign (input the number): $ ' "$clientOrDevice"
       read -r selectedinput
 
       selectedindex=$((selectedinput))
@@ -494,12 +630,16 @@ get_installed_atsigns() {
         selectedatsign="$(echo "$atkeys" | cut -d' ' -f"$selectedindex")"
         echo "Selected: @$selectedatsign"
       else
-        echo "No existing atkeys were selected"
+        echo "No existing atkeys were selected, please enter the $clientOrDevice atSign manually."
+        get_atsign_manually
       fi
     fi
   else
     mkdir -p "$user_home"/.atsign/keys
+    chown_dir "$user_home"/.atsign
     echo "$HOME/.atsign/keys directory created"
+    echo "Since we did not detect any atkeys on this machine, please enter the $clientOrDevice atSign manually."
+    get_atsign_manually
   fi
 }
 
@@ -517,6 +657,77 @@ suggest_sudo() {
   exit 0
 }
 
+check_ssh_keys() {
+  set +eu
+  ssh_dir=$(ls -1 "$user_home"/.ssh) 2>/dev/null
+  ssh_dir_exit=$?
+  set -eu
+  if [ "$ssh_dir_exit" -ne 0 ]; then
+    echo
+    echo "No .ssh directory found. You may want to create one and then add a key to it"
+    echo "with ssh-keygen."
+    echo
+    return
+  fi
+  if [ "$ssh_dir" = "" ]; then
+    echo
+    echo "Found an empty .ssh directory."
+    echo "You may wish to add a key with ssh-keygen."
+    echo
+    return
+  fi
+  if [ "$ssh_dir" = "authorized_keys" ]; then
+    echo
+    echo "Just found an authorized_keys file in the .ssh directory."
+    echo "You may wish to add a key with ssh-keygen."
+    echo
+    return
+  fi
+  # TODO we could have a more sophisticated check for other files to see if they're keys
+}
+
+validate_activation(){
+  device_output=$(echo "$(at_activate status -a $device_atsign 2>&1)")
+  device_status=$(echo $device_output | grep -oE 'returning [0-9]+' | grep -oE '[0-9]+')
+
+  client_output=$(echo "$(at_activate status -a $client_atsign 2>&1)")
+  client_status=$(echo $client_output | grep -oE 'returning [0-9]+' | grep -oE '[0-9]+')
+
+  if [ -z "$policy_atsign" ]; then
+    policy_status=0
+  else
+    policy_output=$(echo "$(at_activate status -a $policy_atsign 2>&1)")
+    policy_status=$(echo $policy_output | grep -oE 'returning [0-9]+' | grep -oE '[0-9]+')
+  fi
+
+  if [ "$device_status" -ne 0 ]; then
+    echo
+    echo "Activating $device_atsign..."
+    if [ "$device_status" -eq 3 ]; then
+      echo $device_output
+    fi
+    at_activate onboard -a $device_atsign
+  fi
+
+  if [ "$client_status" -ne 0 ]; then
+    echo
+    echo "Activating $client_atsign.."
+    if [ "$client_status" -eq 3 ]; then
+      echo $client_output
+    fi
+    at_activate onboard -a $client_atsign
+  fi
+
+  if [ "$policy_status" -ne 0 ]; then
+    echo
+    echo "Activating $policy_atsign.."
+    if [ "$policy_status" -eq 3 ]; then
+      echo "$policy_output"
+    fi
+    at_activate onboard -a "$policy_atsign"
+  fi
+}
+
 # CLIENT INSTALLATION #
 client() {
   mkdir -p "$bin_path"
@@ -526,6 +737,9 @@ client() {
   "$extract_path"/sshnp/install.sh -b "$bin_path" -u "$user" npt
   "$extract_path"/sshnp/install.sh -b "$bin_path" -u "$user" srv
   "$extract_path"/sshnp/install.sh -b "$bin_path" -u "$user" at_activate
+
+  # check that there are some ssh keys
+  check_ssh_keys
 
   # install the magic sshnp script
   magic_script="$bin_path"/np.sh
@@ -540,12 +754,14 @@ client() {
 
   # get the inputs for the magic script
   if [ -z "$client_atsign" ]; then
-    get_installed_atsigns "client"
+    get_atsign "client"
     client_atsign="$selectedatsign"
-    get_client_atsign
   fi
 
-  get_device_atsign
+  if [ -z "$device_atsign" ]; then
+    get_atsign_manually "device"
+    device_atsign="$selectedatsign"
+  fi
 
   if [ -z "$host_atsign" ]; then
     echo Pick your default region:
@@ -579,21 +795,28 @@ client() {
   done
 
   if [ -z "$devices" ]; then
-    done_input=false
-    echo "Installing a quick picker script to make it easy to connect to devices..."
-    echo "Enter the device names you would like to include in the quick picker script"
-    echo "/done to finish"
-    while [ "$done_input" = false ]; do
-      printf "Device name: "
-      read -r device_name
-      if [ "$device_name" = "/done" ]; then
-        done_input=true
-      else
-        devices="$devices,$device_name"
-      fi
-    done
+    if [ "$quiet" = false ]; then
+      done_input=false
+      echo "Installing a quick picker script to make it easy to connect to devices..."
+      echo "Type a device name and press enter to submit it."
+      echo "Press enter once more to finish."
+      while [ "$done_input" = false ]; do
+        printf "Device name: "
+        read -r device_name
+        if [ -z "$device_name" ]; then
+          done_input=true
+        else
+          if ! echo "$device_name" | grep -Eq '^[a-z][a-z0-9_]{0,14}$'; then
+            echo "Device name must be in snake case and max 15 characters"
+            device_name=""
+          else
+            devices="$devices,$device_name"
+          fi
+        fi
+      done
+    fi
   fi
-
+  validate_activation
   # write the metadata to the magic script
   write_metadata "$magic_script" "client_atsign" "$(norm_atsign "$client_atsign")"
   write_metadata "$magic_script" "device_atsign" "$(norm_atsign "$device_atsign")"
@@ -615,17 +838,17 @@ device() {
       if ! $no_sudo && is_systemd_available; then
         suggest_sudo
       fi
-      if command -v tmux >/dev/null 2>&1; then
+      if check_cmd tmux; then
         device_install_type="tmux"
       else
-        if ! command -v cron >/dev/null 2>&1; then
-          echo "ERROR: crontab not available"
-          echo "Please install cron and make it available on the PATH"
+        if ! check_cmd cron; then
+          >&2 echo "ERROR: crontab not available"
+          >&2 echo "Please install cron and make it available on the PATH"
           exit 1
         fi
-        if ! command -v nohup >/dev/null 2>&1; then
-          echo "ERROR: nohup not available"
-          echo "Please install nohup and make it available on the PATH"
+        if ! check_cmd nohup; then
+          >&2 echo "ERROR: nohup not available"
+          >&2 echo "Please install nohup and make it available on the PATH"
           exit 1
         fi
         device_install_type="headless"
@@ -636,61 +859,119 @@ device() {
     device_install_type=$device_type
   fi
 
-  get_client_atsign
-
-  if [ -z "$device_atsign" ]; then
-    get_installed_atsigns "device"
-    device_atsign="$selectedatsign"
-    get_device_atsign
-  fi
-
-  while [ -z "$device_name" ]; do
-    printf "Enter device name: "
-    read -r device_name
-  done
-
+  # install at_activate binary
   "$extract_path"/sshnp/install.sh -b "$bin_path" -u "$user" at_activate
 
-  # run the device install script and capture the output
+  # install sshnpd binary and capture the installer output
   install_output=$("$extract_path"/sshnp/install.sh -b "$bin_path" -u "$user" "$device_install_type" sshnpd)
 
   if [ "$verbose" = true ]; then
     echo "$install_output"
   fi
 
+  # upgrade an existing installation if we find one
   case "$device_install_type" in
     launchd)
       launchd_plist="$HOME/Library/LaunchAgents/com.atsign.sshnpd.plist"
-      write_program_arguments_plist "$launchd_plist" "$bin_path/sshnpd" "-m" "$(norm_atsign "$client_atsign")" "-a" "$(norm_atsign "$device_atsign")" "-d" "$device_name" "-su"
+      if [ -f "$launchd_plist" ]; then
+        echo "launchd config already in place"
+        # TODO: restart service?
+        return
+      fi
+      ;;
+    systemd)
+      if [ "$is_overrideconf_created" = true ]; then
+        echo "systemd config for sshnpd service already in place"
+        echo "sshnpd systemd upgraded and restarted. To see logs use:"
+        echo "  journalctl -u sshnpd -f"
+        systemctl restart sshnpd
+        return
+      fi
+      ;;
+    tmux | headless)
+      # TODO: deal with restarting this type of service
+      ;;
+  esac
+
+  # Get atSigns for fresh install
+  if [ -z "$client_atsign" ]; then
+    get_atsign_manually "client"
+    client_atsign="$selectedatsign"
+  fi
+
+  if [ -z "$device_atsign" ]; then
+    get_atsign "device"
+    device_atsign="$selectedatsign"
+  fi
+
+  # Note: policy_atsign is not mandatory so, if none was supplied,
+  #       we will not prompt for it
+
+  while [ -z "$device_name" ]; do
+    printf "Enter device name: "
+    read -r device_name
+    if ! echo "$device_name" | grep -Eq '^[a-z][a-z0-9_]{0,14}$'; then
+      echo "Device name must be in snake case and max 15 characters"
+      device_name=""
+    fi
+  done
+
+  # configure service for fresh install
+  case "$device_install_type" in
+    launchd)
+      if [ -n "$policy_atsign" ]; then
+        policy_option="-p"
+        policy_atsign="$(norm_atsign "$client_atsign")"
+      else
+        policy_option=""
+      fi
+      launchd_plist="$HOME/Library/LaunchAgents/com.atsign.sshnpd.plist"
+      write_program_arguments_plist "$launchd_plist" "$bin_path/sshnpd" \
+        "-m" "$(norm_atsign "$client_atsign")" \
+        "-a" "$(norm_atsign "$device_atsign")" \
+        "-d" "$device_name" "-su" \
+        "$policy_option" "$policy_atsign"
+
       launchctl unload "$launchd_plist"
       launchctl load "$launchd_plist"
       echo "sshnpd installed with launchd"
       ;;
     systemd)
-      systemd_service="/etc/systemd/system/sshnpd.service"
-      write_systemd_user "$systemd_service" "$user"
-      write_systemd_environment "$systemd_service" "manager_atsign" "$(norm_atsign "$client_atsign")"
-      write_systemd_environment "$systemd_service" "device_atsign" "$(norm_atsign "$device_atsign")"
-      write_systemd_environment "$systemd_service" "device_name" "$device_name"
+      write_systemd_user "$systemd_config_path" "$user"
+      write_systemd_environment "$systemd_config_path" "manager_atsign" "$(norm_atsign "$client_atsign")"
+      write_systemd_environment "$systemd_config_path" "device_atsign" "$(norm_atsign "$device_atsign")"
+      if [ -n "$policy_atsign" ]; then
+        write_systemd_environment "$systemd_config_path" "delegate_policy" "-p $(norm_atsign "$policy_atsign")"
+      fi
+      write_systemd_environment "$systemd_config_path" "device_name" "$device_name"
+
       systemctl enable sshnpd
       systemctl start sshnpd
+
       echo "sshnpd installed with systemd. To see logs use:"
-      echo "journalctl -u sshnpd.service -f"
+      echo "  journalctl -u sshnpd -f"
       ;;
     tmux | headless)
       shell_script="$bin_path"/sshnpd.sh
       write_metadata "$shell_script" "manager_atsign" "$(norm_atsign "$client_atsign")"
       write_metadata "$shell_script" "device_atsign" "$(norm_atsign "$device_atsign")"
       write_metadata "$shell_script" "device_name" "$device_name"
+      if [ -n "$policy_atsign" ]; then
+        write_metadata "$shell_script" "delegate_policy" "-p $(norm_atsign "$policy_atsign")"
+      fi
       # split install output by lines, then grab the output after the line that says "To start immediately"
       eval "$(echo "$install_output" | grep -A1 "To start .* immediately:" | tail -n1)"
       ;;
   esac
+  if ! check_cmd sshd; then
+    >&2 echo "sshd not found. Please install sshd and ensure it is running."
+  fi
 }
 
 main() {
   trap cleanup EXIT
   set -eu
+  check_quiet "$@"
   parse_env
   print_env
   parse_args "$@"
@@ -709,14 +990,6 @@ main() {
   case "$install_type" in
     client) client ;;
     device) device ;;
-    both)
-      echo
-      echo "Installing device part..."
-      device
-      echo
-      echo "Installing client part..."
-      client
-      ;;
   esac
 }
 
