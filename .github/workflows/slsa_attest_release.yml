@@ -136,9 +136,9 @@ jobs:
         with:
           ref: robo-${{github.run_number}}
       - if: ${{ ! inputs.main_build_only }}
-        uses: docker/setup-qemu-action@4574d27a4764455b42196d70a065bc6853246a25 # v3.4.0
+        uses: docker/setup-qemu-action@5964de0df58d5ad28b04d8fe2e6b80ad47105b91 # v3.5.0
       - if: ${{ ! inputs.main_build_only }}
-        uses: docker/setup-buildx-action@f7ce87c1d6bead3e36075b2ce75da1f6cc28aaca # v3.9.0
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
       - if: ${{ ! inputs.main_build_only }}
         run: |
           docker buildx build -t cpswan/releaseautomation -f sshnoports/tools/Dockerfile.package \
@@ -224,7 +224,7 @@ jobs:
       working-directory: tarballs
       run: |
         echo "hashes=$(cat checksums.txt | base64 -w0)" >> "$GITHUB_OUTPUT"
-    - uses: actions/attest-build-provenance@520d128f165991a6c774bcb264f323e3d70747f4 # v2.2.0
+    - uses: actions/attest-build-provenance@bd77c077858b8d561b7a36cbe48ef4cc642ca39d # v2.2.2
       with:
         subject-path: 'tarballs/**'
 
