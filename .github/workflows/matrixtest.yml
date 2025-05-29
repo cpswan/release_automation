@@ -16,6 +16,14 @@ jobs:
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
           - name: activate_sshnpd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.activate
+          - name: sshnp_sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnp
+          - name: npt_sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.npt
+          - name: sshnpd-slim
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnpd-slim
+          - name: srvd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.srvd
     runs-on: ${{ matrix.os }}
     steps:
       # Extract version and OS for docker tags
