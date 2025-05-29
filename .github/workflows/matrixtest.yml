@@ -1,0 +1,29 @@
+name: matrixtest
+
+on:
+  workflow_dispatch:
+
+permissions: # added using https://github.com/step-security/secure-workflows
+  contents: read
+
+jobs:
+  docker:
+    strategy:
+      matrix:
+        os: [ubuntu-24.04-arm, ubuntu-24.04]
+        include:
+          - name: sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
+          - name: activate_sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.activate
+    runs-on: ${{ matrix.os }}
+    steps:
+      # Extract version and OS for docker tags
+      - name: Get version
+        run: |
+          echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo "Version: ${{ env.VERSION }}"
+          echo "Current OS type: $OSTYPE"
+          echo "Matrix OS: ${{ matrix.os}}"
+          echo "Name: ${{ matrix.name }}"
+          echo "Dockerfile: ${{ matrix.dockerfile }}"
