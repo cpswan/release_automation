@@ -1,6 +1,9 @@
 name: matrixtest
 
 on:
+  push:
+    branches:
+      - main 
   workflow_dispatch:
 
 permissions: # added using https://github.com/step-security/secure-workflows
