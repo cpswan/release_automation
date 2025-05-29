@@ -11,6 +11,13 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-24.04-arm, ubuntu-24.04]
+        name:
+          - sshnpd
+          - activate_sshnpd
+          - sshnp_sshnpd
+          - npt_sshnpd
+          - sshnpd-slim
+          - srvd
         include:
           - name: sshnpd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
