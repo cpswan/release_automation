@@ -31,6 +31,10 @@ jobs:
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnpd-slim
           - name: srvd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.srvd
+          - os: ubuntu-24.04-arm
+            platforms: linux/arm64,linux/arm/v7
+          - os: ubuntu-24.04
+            platforms: linux/amd64
     runs-on: ${{ matrix.os }}
     steps:
       # Extract version and OS for docker tags
@@ -42,3 +46,4 @@ jobs:
           echo "Matrix OS: ${{ matrix.os}}"
           echo "Name: ${{ matrix.name }}"
           echo "Dockerfile: ${{ matrix.dockerfile }}"
+          echo "Platforms: ${{ matrix.platforms }}"
