@@ -4,7 +4,9 @@ on:
   push:
     branches:
       - main 
-  workflow_dispatch:
+    tags:
+      - 'l*.*.*' # Matches tags like v1.0.0, v1.0.1, etc.
+    workflow_dispatch:
 
 permissions: # added using https://github.com/step-security/secure-workflows
   contents: read
@@ -40,9 +42,9 @@ jobs:
             # Decorated tag for pushes to trunk (dev_env-branch-gha)
             type=raw,value=dev_env-${{ github.ref_name }}-gha${{ github.run_number }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             # Tag for tagged releases (canary)
-            type=raw,value=canary,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=canary,enable=${{ startsWith(github.ref, 'refs/tags/l') }}
             # Also add the Git tag name itself for releases
-            type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/l') }}
             # Optional: Add latest for main branch pushes if you want
             # type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
       # Extract version and OS for docker tags
