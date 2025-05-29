@@ -58,3 +58,9 @@ jobs:
           echo "Prefix: ${{ matrix.prefix }}"
           echo "Docker tags: ${{ steps.meta.outputs.tags }}"
           echo "Docker labels: ${{ steps.meta.outputs.labels }}"
+          if ${{ startsWith(github.ref, 'refs/tags/l') }}; then
+            echo "Tagged release"
+          else
+            echo "Not a tagged release"
+          fi
+
