@@ -38,7 +38,7 @@ jobs:
             # Default tag for pushes to trunk (dev_env)
             type=raw,value=dev_env,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             # Decorated tag for pushes to trunk (dev_env-branch-gha)
-            type=raw,value=dev_env-${GITHUB_REF##*/}-gha${{ github.run_number }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            type=raw,value=dev_env-${{ github.head_ref }}-gha${{ github.run_number }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             # Tag for tagged releases (canary)
             type=raw,value=canary,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             # Also add the Git tag name itself for releases
