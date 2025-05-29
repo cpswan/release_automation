@@ -31,8 +31,6 @@ jobs:
         uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: atsigncompany/${{ matrix.name }}
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             # Default tag for pushes to main/master (dev_env)
             type=raw,value=dev_env,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
