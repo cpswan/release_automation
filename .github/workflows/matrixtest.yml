@@ -13,22 +13,10 @@ jobs:
         os: [ubuntu-24.04-arm, ubuntu-24.04]
         name:
           - sshnpd
-          - activate_sshnpd
-          - sshnp_sshnpd
-          - npt_sshnpd
-          - sshnpd-slim
           - srvd
         include:
           - name: sshnpd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
-          - name: activate_sshnpd
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.activate
-          - name: sshnp_sshnpd
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnp
-          - name: npt_sshnpd
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.npt
-          - name: sshnpd-slim
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnpd-slim
           - name: srvd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.srvd
           - os: ubuntu-24.04-arm
