@@ -38,6 +38,11 @@ jobs:
             prefix: amd64-
     runs-on: ${{ matrix.os }}
     steps:
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
+        with:
+          images: atsigncompany/${{ matrix.name }}
       # Extract version and OS for docker tags
       - name: Get version
         run: |
@@ -48,4 +53,6 @@ jobs:
           echo "Name: ${{ matrix.name }}"
           echo "Dockerfile: ${{ matrix.dockerfile }}"
           echo "Platforms: ${{ matrix.platforms }}"
-          echo "Prefix ${{ matrix.prefix }}"
+          echo "Prefix: ${{ matrix.prefix }}"
+          echo "Docker tags: ${{ steps.meta.outputs.tags }}"
+          echo "Docker labels: ${{ steps.meta.outputs.labels }}"
