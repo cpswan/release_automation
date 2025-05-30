@@ -36,7 +36,6 @@ jobs:
         run: |
           echo "Would bump: ${{ github.event.inputs.image }}"
 
-jobs:
   multi:
     if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
