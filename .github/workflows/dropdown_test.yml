@@ -1,23 +1,62 @@
 name: DropDown Test
 
 on:
+  push:
+    tags:
+      - 'm*.*.*' 
   workflow_dispatch:
     inputs:
       image:
         type: choice
         description: Select image to promote
         options:
+          - sshnpd
           - activate_sshnpd
           - sshnp_sshnpd
           - npt_sshnpd
           - sshnpd-slim
           - srvd
 
-jobs:
-  build:
-    runs-on: ubuntu-24.04
+permissions: # added using https://github.com/step-security/secure-workflows
+  contents: read
 
+jobs:
+  single:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
     steps:
-      - name: greet
-        run: | 
-          echo "Image is ${{ github.event.inputs.image }}"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - name: Login to Docker Hub
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Promote canary to latest
+        run: |
+          echo "Would bump: ${{ github.event.inputs.image }}"
+
+jobs:
+  multi:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        include:
+          - name: sshnpd
+          - name: activate_sshnpd
+          - name: sshnp_sshnpd
+          - name: npt_sshnpd
+          - name: sshnpd-slim
+          - name: srvd
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+      - name: Login to Docker Hub
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Promote canary to latest
+        run: |
+          echo "Would bump: ${{ matrix.name }}"
