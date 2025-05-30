@@ -1,0 +1,23 @@
+name: DropDown Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        type: choice
+        description: Select image to promote
+        options:
+          - activate_sshnpd
+          - sshnp_sshnpd
+          - npt_sshnpd
+          - sshnpd-slim
+          - srvd
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: greet
+        run: | 
+          echo "Image is ${{ github.event.inputs.image }}"
