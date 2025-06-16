@@ -138,7 +138,7 @@ jobs:
       - if: ${{ ! inputs.main_build_only }}
         uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
       - if: ${{ ! inputs.main_build_only }}
-        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        uses: docker/setup-buildx-action@18ce135bb5112fa8ce4ed6c17ab05699d7f3a5e0 # v3.11.0
       - if: ${{ ! inputs.main_build_only }}
         run: |
           docker buildx build -t cpswan/releaseautomation -f sshnoports/tools/Dockerfile.package \
@@ -197,7 +197,7 @@ jobs:
         sparse-checkout: packages/dart/sshnoports/pubspec.lock
         sparse-checkout-cone-mode: false
     - name: Install Syft
-      uses: anchore/sbom-action/download-syft@e11c554f704a0b820cbf8c51673f6945e0731532 # v0.20.0
+      uses: anchore/sbom-action/download-syft@9246b90769f852b3a8921f330c59e0b3f439d6e9 # v0.20.1
     - name: Download all the tarballs
       uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
       with:
