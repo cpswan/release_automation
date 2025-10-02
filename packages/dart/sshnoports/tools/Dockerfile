@@ -1,7 +1,7 @@
 # Dockerfile
 # Build image for a containerized instance of sshnpd
 
-FROM dart:3.9.3@sha256:62c81aa18e73479e58ef3ba2c2ec3cd1c563d00475903f83f6f0e49588b150a7 AS buildimage
+FROM dart:3.9.4@sha256:01c58a17745bf25c5f84683bab093cf3e99329ce9d6d16e89600f5e6f53ebfae AS buildimage
 ENV PACKAGEDIR=packages/dart/sshnoports
 ENV BINARYDIR=/usr/local/at
 SHELL ["/bin/bash", "-c"]
