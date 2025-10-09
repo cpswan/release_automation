@@ -49,7 +49,7 @@ jobs:
           file: ./packages/docker/Dockerfile
           push: true
           sbom: true
-          provenance: mode=max
+          provenance: version=v1,mode=max
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: |
