@@ -1,76 +1,58 @@
 name: dockerhub_sshnpd
 
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - trunk
     tags:
       - "v*.*.*"
+  workflow_dispatch:
 
 permissions: # added using https://github.com/step-security/secure-workflows
   contents: read
 
 jobs:
-  docker_arm64:
+  docker:
     strategy:
-      matrix:
-        include:
-          - name: sshnpd
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
-          - name: activate_sshnpd
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.activate
-          - name: sshnpd-slim
-            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnpd-slim
       fail-fast: false
-    runs-on: ubuntu-24.04-arm
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-      - name: Ensure pubspec.yaml matches git ref (if current git ref is a version tag)
-        shell: bash
-        if: startsWith(github.ref, 'refs/tags/v')
-        working-directory: ./packages/dart/sshnoports
-        run: |
-          REF=${{ github.ref }}
-          VER=${REF:11}
-          sed -i "0,/version:/{s/version: \(.*\)/version: "${VER}"/}" pubspec.yaml
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
-      - name: Login to Docker Hub
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Extract version for docker tag
-      - name: Get version
-        run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
-      - name: Build and push
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          platforms: linux/arm64,linux/arm/v7
-          push: true
-          provenance: false
-          tags: |
-            atsigncompany/${{ matrix.name }}:${{ env.VERSION }}
-            atsigncompany/${{ matrix.name }}:release-${{ env.VERSION }}
-
-  docker_amd64:
-    strategy:
       matrix:
+        os: [ubuntu-24.04-arm, ubuntu-24.04]
+        name:
+          - sshnpd
+          - activate_sshnpd
+          - sshnp_sshnpd
+          - npt_sshnpd
+          - sshnpd-slim
+          - srvd
         include:
           - name: sshnpd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile
           - name: activate_sshnpd
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.activate
+          - name: sshnp_sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnp
+          - name: npt_sshnpd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.npt
           - name: sshnpd-slim
             dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.sshnpd-slim
-    runs-on: ubuntu-latest
+          - name: srvd
+            dockerfile: ./packages/dart/sshnoports/tools/Dockerfile.srvd
+          - os: ubuntu-24.04-arm
+            platforms: linux/arm64,linux/arm/v7
+          - os: ubuntu-24.04
+            platforms: linux/amd64
+            prefix: amd64-
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write # for creating OIDC tokens for signing.
+    outputs:
+      digest: ${{ steps.docker_build.outputs.digest }}
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
       - name: Ensure pubspec.yaml matches git ref (if current git ref is a version tag)
         shell: bash
         if: startsWith(github.ref, 'refs/tags/v')
@@ -88,31 +70,65 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      # Extract version for docker tag
-      - name: Get version
-        run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5.8.0
+        with:
+          images: cpswan/${{ matrix.name }}
+          tags: |
+            # Default tag for pushes to trunk (dev_env)
+            type=raw,value=${{ matrix.prefix }}dev_env,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            # Decorated tag for pushes to trunk (dev_env-branch-gha)
+            type=raw,value=${{ matrix.prefix }}dev_env-${{ github.ref_name }}-gha${{ github.run_number }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            # Default tag for workflow_dispatch (dev_env)
+            type=raw,value=${{ matrix.prefix }}dev_env,enable=${{ github.event_name == 'workflow_dispatch' }}
+            # Decorated tag for workflow_dispatch (dev_env-branch-gha)
+            type=raw,value=${{ matrix.prefix }}dev_env-${{ github.ref_name }}-gha${{ github.run_number }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            # Tag for tagged releases
+            type=raw,value=${{ matrix.prefix }}release,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            # Also add the Git tag name itself for releases
+            type=raw,value=${{ matrix.prefix }}release-${{ github.ref_name }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
       - name: Build and push
+        id: docker_build
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: .
           file: ${{ matrix.dockerfile }}
-          platforms: linux/amd64
           push: true
-          provenance: false
-          tags: |
-            atsigncompany/${{ matrix.name }}:amd64-${{ env.VERSION }}
-            atsigncompany/${{ matrix.name }}:amd64-release-${{ env.VERSION }}
+          sbom: true
+          provenance: version=v1,mode=max
+          tags: ${{ steps.meta.outputs.tags }}
+          platforms: ${{ matrix.platforms }}
+      - name: Sign the images with GitHub OIDC Token
+        env:
+          DIGEST: ${{ steps.docker_build.outputs.digest }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
 
   docker_combine:
-    needs: [docker_amd64, docker_arm64]
-    runs-on: ubuntu-latest
+    needs: docker
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write # for creating OIDC tokens for signing.
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: sshnpd
           - name: activate_sshnpd
+          - name: sshnp_sshnpd
+          - name: npt_sshnpd
           - name: sshnpd-slim
+          - name: srvd
     steps:
+      - name: Install cosign
+        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
       - name: Login to Docker Hub
@@ -122,24 +138,93 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
       # Extract version for docker tag
       - name: Get version
-        run: echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        run: |
+          if ${{ startsWith(github.ref, 'refs/tags/v') }}; then
+            # Tagged release
+            echo "TAG1=release" >> $GITHUB_ENV
+            echo "TAG2=release-${{ github.ref_name }}" >> $GITHUB_ENV
+          else
+            # Not a tagged release
+            echo "TAG1=dev_env" >> $GITHUB_ENV
+            echo "TAG2=dev_env-${{ github.ref_name }}-gha${{ github.run_number }}" >> $GITHUB_ENV
+          fi
       - name: Combine build images
         id: docker_manifest_build
         run: |
           docker buildx imagetools create \
-            -t atsigncompany/${{ matrix.name }}:${{ env.VERSION }} \
-            --append atsigncompany/${{ matrix.name }}:amd64-${{ env.VERSION }}
+            -t cpswan/${{ matrix.name }}:${{ env.TAG1 }} \
+            --append cpswan/${{ matrix.name }}:amd64-${{ env.TAG1 }}
           docker buildx imagetools create \
-            -t atsigncompany/${{ matrix.name }}:release-${{ env.VERSION }} \
-            --append atsigncompany/${{ matrix.name }}:amd64-release-${{ env.VERSION }}
-      # Promote to latest so long as this isn't a pre-release
-      - name: Update latest tag
+            -t cpswan/${{ matrix.name }}:${{ env.TAG2 }} \
+            --append cpswan/${{ matrix.name }}:amd64-${{ env.TAG2 }}
+      - name: Save digest to file and sign combined manifests
+        id: save_digest
         run: |
-          RELEASE_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ env.VERSION }}")
-          PRERELEASE=$(echo "$RELEASE_JSON" | jq -r '.prerelease')
-          if [ $PRERELEASE == 'false' ]; then
-            docker buildx imagetools create -t \
-              atsigncompany/${{ matrix.name }}:latest \
-              atsigncompany/${{ matrix.name }}:release-${{ env.VERSION }}
-          fi
+          IMAGE="cpswan/${{ matrix.name }}:${{ env.TAG1 }}"
+          IMAGE_DIGEST=$(docker buildx imagetools inspect ${IMAGE} \
+            --format "{{json .Manifest}}" | jq -r .digest)
+          # Create a JSON object for the image and digest
+          echo "{\"name\": \"${IMAGE}\", \"digest\": \"${IMAGE_DIGEST}\"}" \
+            > ${{ matrix.name }}_digest.json
+          IMAGES="${IMAGE}@${IMAGE_DIGEST}"
+          IMAGES+=" cpswan/${{ matrix.name }}:${{ env.TAG2 }}@${IMAGE_DIGEST}"
+          cosign sign --yes ${IMAGES}
+      - name: Upload image digest file
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: digests-${{ matrix.name }}
+          path: ./${{ matrix.name }}_digest.json
+          # GitHub collects all files uploaded with this name across the matrix runs
+          # into a single artifact that the next job can download.
+      # Promote to canary
+      - name: Update and sign canary tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          docker buildx imagetools create -t \
+            cpswan/${{ matrix.name }}:canary \
+            cpswan/${{ matrix.name }}:release-${{ github.ref_name }}
+          docker buildx imagetools create -t \
+            cpswan/${{ matrix.name }}:canary-${{ github.ref_name }} \
+            cpswan/${{ matrix.name }}:release-${{ github.ref_name }}
+          CANARY="cpswan/${{ matrix.name }}:canary"
+          CANARY_DIGEST=$(docker buildx imagetools inspect ${CANARY} \
+            --format "{{json .Manifest}}" | jq -r .digest)
+          IMAGES="${CANARY}@${CANARY_DIGEST}"
+          IMAGES+=" cpswan/${{ matrix.name }}:canary-${{ github.ref_name }}@${CANARY_DIGEST}"
+          cosign sign --yes ${IMAGES}
+
+  aggregate_digests:
+    runs-on: ubuntu-latest
+    needs: [docker_combine]
+    outputs:
+      slsa_matrix: ${{ steps.create_matrix.outputs.matrix_json }}
+    steps:
+      - name: Download all-image-digests artifact
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          pattern: digests-*
+          path: ./digests
+          merge-multiple: true
+      - name: Combine digests into a single JSON array
+        id: create_matrix
+        run: |
+          MATRIX_JSON=$(jq -s '.' ./digests/*_digest.json)
+          echo "matrix_json=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          echo "::notice::Generated SLSA Matrix JSON: ${MATRIX_JSON}"
+
+  slsa_provenance:
+    needs: [aggregate_digests]
+    permissions:
+      actions: read # for detecting the Github Actions environment.
+      id-token: write # for creating OIDC tokens for signing.
+      packages: write # for uploading attestations.
+    strategy:
+      matrix:
+        image_data: ${{ fromJson(needs.aggregate_digests.outputs.slsa_matrix) }}
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ${{ matrix.image_data.name }}
+      digest: ${{ matrix.image_data.digest }}
+    secrets:
+      registry-username: ${{ secrets.DOCKERHUB_USERNAME }}
+      registry-password: ${{ secrets.DOCKERHUB_TOKEN }}
