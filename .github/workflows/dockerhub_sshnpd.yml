@@ -209,7 +209,11 @@ jobs:
         id: create_matrix
         run: |
           MATRIX_JSON=$(jq -s '.' ./digests/*_digest.json)
-          echo "matrix_json=$MATRIX_JSON" >> "$GITHUB_OUTPUT"
+          {
+            echo 'matrix_json<<EOF'
+            echo" $MATRIX_JSON"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
           echo "::notice::Generated SLSA Matrix JSON: ${MATRIX_JSON}"
 
   slsa_provenance:
