@@ -196,7 +196,7 @@ jobs:
         sparse-checkout: packages/dart/sshnoports/pubspec.lock
         sparse-checkout-cone-mode: false
     - name: Install Syft
-      uses: anchore/sbom-action/download-syft@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
+      uses: anchore/sbom-action/download-syft@43a17d6e7add2b5535efe4dcae9952337c479a93 # v0.20.11
     - name: Download all the tarballs
       uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6.0.0
       with:
