@@ -21,7 +21,7 @@ jobs:
       contents: write # Needed to create workflow branch
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Create action branch
         run: |
           git config --global user.name 'Atsign Robot'
@@ -69,7 +69,7 @@ jobs:
             ext: '.exe'
             bundle: 'windows'
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: robo-${{github.run_number}}
       #- uses: dart-lang/setup-dart@f0ead981b4d9a35b37f30d36160575d60931ec30 # v1.6.4
@@ -132,7 +132,7 @@ jobs:
             output-name: sshnp-linux-riscv64
     steps:
       - if: ${{ ! inputs.main_build_only }}
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: robo-${{github.run_number}}
       - if: ${{ ! inputs.main_build_only }}
@@ -159,7 +159,7 @@ jobs:
         working-directory: ./packages/dart/sshnoports/bundles
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: |
           write_metadata() {
             start_line="# SCRIPT METADATA"
@@ -230,7 +230,7 @@ jobs:
     permissions:
       contents: write # Needed to delete workflow branch
     steps:
-    - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       with:
         ref: robo-${{github.run_number}}
     - name: Delete workflow branch
