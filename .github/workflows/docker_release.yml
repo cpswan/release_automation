@@ -43,7 +43,7 @@ jobs:
             org.opencontainers.image.description=Repackaged Atsign Dart Show Platform
       - name: Build and push Multi Arch buildimage
         id: docker_build
-        uses: docker/build-push-action@ee4ca427a2f43b6a16632044ca514c076267da23 # v6.19.0
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           file: ./packages/docker/Dockerfile
           push: true
