@@ -1,0 +1,14 @@
+name: nfpm
+
+on:
+  workflow_dispatch:
+
+steps:
+  -
+    name: Install GoReleaser
+    uses: goreleaser/goreleaser-action@v6
+    with:
+      install-only: true
+  -
+    name: Show nfpm version
+    run: nfpm -v
