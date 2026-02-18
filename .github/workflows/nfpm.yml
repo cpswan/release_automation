@@ -7,6 +7,12 @@ jobs:
   nfpm:
     runs-on: ubuntu-latest
     steps:
+      - name: Setup Go
+          uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
+          with:
+            go-version: '1.25.6'
+            # Built-in caching for modules and build cache
+            cache: true
       - name: Install and show nfpm version
         run: |
           go install github.com/goreleaser/nfpm/v2/cmd/nfpm@be6fd83eed6f241359ae3e7d340a13f197ae6463
