@@ -7,11 +7,7 @@ jobs:
   nfpm:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Install GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          install-only: true
-      -
-        name: Show nfpm version
-        run: nfpm -v
+      - name: Install and show nfpm version
+        run: |
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@be6fd83eed6f241359ae3e7d340a13f197ae6463
+          nfpm -v
